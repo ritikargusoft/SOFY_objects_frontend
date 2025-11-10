@@ -11,7 +11,8 @@
       <v-card-actions>
         <v-spacer />
         <v-btn text @click="dialog = false">Cancel</v-btn>
-        <v-btn color="primary" @click="submit">Create</v-btn>
+
+        <v-btn color="blue-lighten-1" @click="submit">Create</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>

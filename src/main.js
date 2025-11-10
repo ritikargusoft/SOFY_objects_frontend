@@ -5,7 +5,6 @@ import store from "./store/index.js";
 import "./plugins/axios.js";
 import "material-symbols";
 import vuetify from "./plugins/vuetify";
-
 const app = createApp(App);
 
 app.use(store);

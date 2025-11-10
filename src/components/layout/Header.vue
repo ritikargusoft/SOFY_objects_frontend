@@ -1,5 +1,5 @@
 <template>
-  <v-app-bar app color="blue">
+  <v-app-bar app color="blue-lighten-2">
     <v-toolbar-title style="cursor: pointer" @click="$router.push('/')">
       <v-img
         src="https://cdn.freebiesupply.com/logos/large/2x/kpmg-logo-png-transparent.png"
@@ -12,9 +12,9 @@
     <v-spacer />
 
     <div :class="`cursor-pointer d-flex mx-3`">
-      <div @click="$router.push('/')" class="d-flex">
-        <span class="material-symbols-outlined me-1 "> home </span>
-        <div class="">Home</div>
+      <div @click="$router.push('/')" class="d-flex me-3">
+        <span class="material-symbols-outlined me-1"> home </span>
+        <div class="align-self-center">Home</div>
       </div>
 
       <div @click="$router.push('/')">

@@ -10,8 +10,13 @@
   },
   "dependencies": {
     "@material-symbols/metadata": "^0.39.1",
+    "@tiptap/extension-text-align": "^3.10.4",
+    "@tiptap/extension-underline": "^3.10.4",
+    "@tiptap/starter-kit": "^3.10.4",
+    "@tiptap/vue-3": "^3.10.4",
     "axios": "^1.13.2",
     "css-vars": "^2.4.0",
+    "dompurify": "^3.3.0",
     "material-symbols": "^0.39.1",
     "vue": "^3.5.22",
     "vue-router": "^4.6.3",

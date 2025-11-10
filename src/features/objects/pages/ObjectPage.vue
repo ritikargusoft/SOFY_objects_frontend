@@ -1,73 +1,86 @@
 <template>
   <MainLayout>
-    <div class="bg-selected">
-      <v-row class="mb-4" align="center" justify="space-between">
-        <v-col cols="12" md="6">
+    <div class="pa-6">
+
+      <v-row align="center" justify="space-between" class="mb-4">
+        <v-col cols="12" md="4" class="d-flex align-center">
+          <div class="text-h5 font-weight-medium">Objects</div>
+        </v-col>
+
+        <v-col cols="12" md="8" class="d-flex justify-end align-center">
           <v-text-field
             v-model="search"
-            label="Search objects"
+            placeholder="Search by name or description"
             dense
             clearable
+            hide-details
+            outlined
+            rounded
+            prepend-inner-icon="mdi-magnify"
+            clear-icon="mdi-close-circle"
+            class="ma-0 mr-4"
+            style="max-width: 380px;"
             @input="applyFilter"
-            append-icon="mdi-magnify"
           />
-        </v-col>
-        <v-col cols="12" md="6" class="d-flex justify-end">
-          <v-btn color="primary" icon @click="openCreate">
-            <span class="material-symbols-outlined" style="font-size: 32px">
-              edit
-            </span>
+
+          <v-btn
+            color="primary"
+            class="d-flex align-center"
+            rounded
+            elevation="2"
+            @click="openCreate"
+            aria-label="Create object"
+          >
+            <span class="material-symbols-outlined mr-2">add</span>
+            <span class="text-none">Add</span>
           </v-btn>
         </v-col>
       </v-row>
-      <v-card>
+
+      <v-card class="elevation-3 rounded-lg">
         <v-data-table
           :headers="headers"
           :items="filtered"
           item-key="object_uuid"
+          dense
+          hover
+          class="pa-0"
+          :no-data-text="'No objects yet. Click Add to create one.'"
         >
-          <template #item.description="{ item }">
-            <span>{{ item.description ?? "-" }}</span>
-          </template>
-          <template #item.last_updated_at="{ item }">
-            {{ formatDate(item.last_updated_at ?? item.last_updated_at) }}
-          </template>
-          <template #item.actions="{ item }">
-            <v-btn icon small @click="openEdit(item)">
-              <span class="material-symbols-outlined" style="font-size: 32px">
-                edit
-              </span>
-            </v-btn>
 
-            <v-btn icon small color="red" @click="openDelete(item)">
-              <span class="material-symbols-outlined" style="font-size: 32px">
-                delete
-              </span>
-            </v-btn>
+          <template #item.name="{ item }">
+            <div class="font-weight-medium text-subtitle-2">{{ item.name ?? "-" }}</div>
           </template>
-          <template #no-data>
-            <v-card-text class="text-center"
-              >No objects yet. Click + to add.</v-card-text
-            >
+
+          <template #item.description="{ item }">
+            <div class="text-body-2">{{ item.description ?? "-" }}</div>
+          </template>
+
+          <template #item.last_updated_at="{ item }">
+            <div class="text-caption">{{ formatDate(item.last_updated_at) }}</div>
+          </template>
+
+          <template #item.actions="{ item }">
+            <div class="d-flex">
+              <v-btn icon small class="mr-2" @click="openEdit(item)" title="Edit">
+                <span class="material-symbols-outlined">edit</span>
+              </v-btn>
+
+              <v-btn icon small color="red" @click="openDelete(item)" title="Delete">
+                <span class="material-symbols-outlined">delete</span>
+              </v-btn>
+            </div>
           </template>
         </v-data-table>
       </v-card>
 
-      <!-- modals -->
       <CreateObject v-model:show="showCreate" @created="reload" />
-      <UpdateObject
-        v-model:show="showEdit"
-        :object="selected"
-        @updated="reload"
-      />
-      <DeleteObject
-        v-model:show="showDelete"
-        :object="selected"
-        @deleted="reload"
-      />
+      <UpdateObject v-model:show="showEdit" :object="selected" @updated="reload" />
+      <DeleteObject v-model:show="showDelete" :object="selected" @deleted="reload" />
     </div>
   </MainLayout>
 </template>
+
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import MainLayout from "../../../layouts/MainLayout.vue";
@@ -75,50 +88,50 @@ import CreateObject from "../components/CreateObject.vue";
 import UpdateObject from "../components/UpdateObject.vue";
 import DeleteObject from "../components/DeleteObject.vue";
 import objectService from "../api/objectService.js";
+
 const objects = ref([]);
 const search = ref("");
 const selected = ref(null);
 const showCreate = ref(false);
 const showEdit = ref(false);
 const showDelete = ref(false);
+
 const headers = [
-  { title: "Name", value: "name" },
-  { title: "Description", value: "description" },
-  { title: "Last Updated", value: "last_updated_at" },
-  { title: "Actions", value: "actions", sortable: false },
+  { text: "Name", value: "name", align: "start" },
+  { text: "Description", value: "description", align: "start" },
+  { text: "Last Updated", value: "last_updated_at", align: "center" },
+  { text: "Actions", value: "actions", sortable: false, align: "center" },
 ];
+
 async function load() {
   try {
     const data = await objectService.fetchObjects();
-    objects.value = data.map((o) => ({
+    objects.value = (data || []).map((o) => ({
       ...o,
-      last_updated_at: o.last_updated_at ?? o.last_updated_at,
+      last_updated_at: o.last_updated_at ?? null,
     }));
   } catch (err) {
     console.error("Failed to load objects", err);
   }
 }
+
 onMounted(load);
-function applyFilter() {
-  // computed filtered reacts to search
-}
+
+function applyFilter() {}
+
 const filtered = computed(() => {
-  if (!search.value) return objects.value;
+  const q = (search.value || "").trim().toLowerCase();
+  if (!q) return objects.value;
   return objects.value.filter((o) =>
-    o.name?.toLowerCase().includes(search.value.toLowerCase())
+    (o.name || "").toLowerCase().includes(q) ||
+    (o.description || "").toLowerCase().includes(q)
   );
 });
-function openCreate() {
-  showCreate.value = true;
-}
-function openEdit(obj) {
-  selected.value = obj;
-  showEdit.value = true;
-}
-function openDelete(obj) {
-  selected.value = obj;
-  showDelete.value = true;
-}
+
+function openCreate() { showCreate.value = true; }
+function openEdit(obj) { selected.value = obj; showEdit.value = true; }
+function openDelete(obj) { selected.value = obj; showDelete.value = true; }
+
 async function reload() {
   await load();
   showCreate.value = false;
@@ -126,8 +139,10 @@ async function reload() {
   showDelete.value = false;
   selected.value = null;
 }
+
 function formatDate(ts) {
   if (!ts) return "-";
-  return new Date(ts).toLocaleString();
+  try { return new Date(ts).toLocaleString(); }
+  catch { return String(ts); }
 }
 </script>

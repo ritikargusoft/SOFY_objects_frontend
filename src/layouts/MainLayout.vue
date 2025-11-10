@@ -1,4 +1,3 @@
-
 <template>
   <v-app>
     <Header />
@@ -7,8 +6,8 @@
         <slot />
       </v-container>
     </v-main>
-    <v-footer padless>
-      <v-col  class="  text-center py-4">© KPMG SOFY - Demo</v-col>
+    <v-footer>
+      <p class="text-body-2 font-weight-thin pt-4">2025 © KPMG</p>
     </v-footer>
   </v-app>
 </template>
