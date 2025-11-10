@@ -1,7 +1,7 @@
 <template>
   <MainLayout>
     <v-container class="pa-8 fill-height d-flex justify-center align-center">
-      <v-row justify="center" align="center" spacing="4">
+      <v-row justify="center"  spacing="4">
         <v-col cols="12" sm="6" md="4">
           <v-sheet
             class="d-flex flex-column align-center justify-center rounded-lg"
@@ -18,10 +18,9 @@
           >
             <div
               :class="[
-                'd-flex align-center justify-center rounded-circle',
+                'd-flex align-center justify-center rounded-circle w-25 h-25',
                 isActive1 ? 'bg-white' : 'bg-blue-darken-3',
               ]"
-              :style="circleStyle"
             >
               <span
                 :class="[isActive1 ? 'text-black' : 'text-white']"
@@ -34,7 +33,7 @@
             <div class="d-flex mt-2 align-center">
               <div
                 :class="[
-                  isActive1 ? 'text-white' : 'blue--text text--darken-3',
+                  isActive1 ? 'text-white' : ' text-darken-3',
                   'font-medium',
                 ]"
               >
@@ -42,8 +41,8 @@
               </div>
               <span
                 :class="[
-                  isActive1 ? 'text-white' : 'blue--text text--darken-3',
-                  'material-symbols-outlined ml-2',
+                  isActive1 ? 'text-white' : 'text-darken-3',
+                  'material-symbols-outlined',
                 ]"
               >
                 keyboard_arrow_right
@@ -68,10 +67,9 @@
           >
             <div
               :class="[
-                'd-flex align-center justify-center rounded-circle',
+                'd-flex align-center justify-center rounded-circle w-25 h-25',
                 isActive2 ? 'bg-white' : 'bg-blue-darken-3',
               ]"
-              :style="circleStyle"
             >
               <span
                 :class="[isActive2 ? 'text-black' : 'text-white']"
@@ -84,7 +82,7 @@
             <div class="d-flex mt-2 align-center">
               <div
                 :class="[
-                  isActive2 ? 'text-white' : 'blue--text text--darken-3',
+                  isActive2 ? 'text-white' : 'text-darken-3',
                   'font-medium',
                 ]"
               >
@@ -92,8 +90,8 @@
               </div>
               <span
                 :class="[
-                  isActive2 ? 'text-white' : 'blue--text text--darken-3',
-                  'material-symbols-outlined ml-2',
+                  isActive2 ? 'text-white' : 'text-darken-3',
+                  'material-symbols-outlined ',
                 ]"
               >
                 keyboard_arrow_right
@@ -119,14 +117,4 @@ function goObjects() {
 const isActive1 = ref(false);
 const isActive2 = ref(false);
 
-const circleStyle = {
-  width: "56px",
-  height: "56px",
-};
 </script>
-
-<style>
-.rounded-circle {
-  border-radius: 50% !important;
-}
-</style>

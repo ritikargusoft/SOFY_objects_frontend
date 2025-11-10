@@ -1,14 +1,20 @@
+
 <template>
   <v-app-bar app color="blue-lighten-2">
     <v-toolbar-title style="cursor: pointer" @click="$router.push('/')">
-      <v-img
+      <!-- <v-img
         src="https://cdn.freebiesupply.com/logos/large/2x/kpmg-logo-png-transparent.png"
+        alt="KPMG Logo"
+        max-width="100"
+        contain
+      ></v-img> -->
+       <v-img
+        src= "img/kpmg2.png"
         alt="KPMG Logo"
         max-width="100"
         contain
       ></v-img>
     </v-toolbar-title>
-
     <v-spacer />
 
     <div :class="`cursor-pointer d-flex mx-3`">
@@ -23,6 +29,7 @@
     </div>
   </v-app-bar>
 </template>
+
 
 <script>
 export default { name: "AppHeader" };

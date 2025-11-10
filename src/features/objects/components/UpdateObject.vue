@@ -1,4 +1,3 @@
-
 <template>
   <v-dialog v-model="dialog" max-width="560">
     <v-card>
@@ -6,7 +5,7 @@
       <v-card-text>
         <v-form>
           <v-text-field v-model="local.name" label="Name" :rules="[required]" required />
-          <v-textarea v-model="local.description" label="Description" rows="3" />
+          <RichTextEditor v-model="local.description" />
         </v-form>
       </v-card-text>
       <v-card-actions>
@@ -20,6 +19,7 @@
 <script setup>
 import { ref, watch, computed } from "vue";
 import objectService from "../api/objectService.js";
+import RichTextEditor from "./RichTextEditor.vue";
 const props = defineProps({ show: Boolean, object: Object });
 const emit = defineEmits(["update:show", "updated"]);
 const dialog = computed({
@@ -33,7 +33,7 @@ watch(() => props.show, (val) => {
     local.value = {
       object_uuid: props.object.object_uuid,
       name: props.object.name,
-      description: props.object.description
+      description: props.object.description || "" 
     };
   }
 });
@@ -42,7 +42,7 @@ async function submit() {
   try {
     const res = await objectService.updateObject(local.value.object_uuid, {
       name: local.value.name.trim(),
-      description: local.value.description || null
+      description: local.value.description || null 
     });
     if (res.status === 200) {
       emit("updated");
