@@ -4,7 +4,13 @@
       <v-card-title>Create Object</v-card-title>
       <v-card-text>
         <v-form ref="formRef">
-          <v-text-field v-model="form.name" label="Name" :rules="[required]" required />
+          <v-text-field
+            v-model="form.name"
+            label="Name"
+            variant="outlined"
+            :rules="[required]"
+            required
+          />
           <RichTextEditor v-model="form.description" />
         </v-form>
       </v-card-text>
@@ -16,33 +22,46 @@
     </v-card>
   </v-dialog>
 </template>
+
 <script setup>
+
 import { ref, watch, computed } from "vue";
 import objectService from "../api/objectService.js";
 import RichTextEditor from "./RichTextEditor.vue";
+
 const props = defineProps({ show: Boolean });
 const emit = defineEmits(["update:show", "created"]);
+
 const dialog = computed({
   get: () => props.show,
-  set: (val) => emit("update:show", val)
+  set: (val) => emit("update:show", val),
 });
-const form = ref({ name: "", description: "" }); 
+
+const form = ref({ name: "", description: "" });
 const formRef = ref(null);
 const required = (v) => (v && v.toString().trim().length > 0) || "Required";
-watch(() => props.show, (val) => {
-  if (val) form.value = { name: "", description: "" };
-});
+
+watch(
+  () => props.show,
+  (val) => {
+    if (val) form.value = { name: "", description: "" };
+  }
+);
+
 async function submit() {
   if (!required(form.value.name)) return;
   try {
     const res = await objectService.createObject({
       name: form.value.name.trim(),
-      description: form.value.description || null 
+      description: form.value.description || null,
     });
     if (res.status === 201) {
       emit("created");
       dialog.value = false;
-    } else if (res.status === 200 && res.data?.message?.toLowerCase().includes("already")) {
+    } else if (
+      res.status === 200 &&
+      res.data?.message?.toLowerCase().includes("already")
+    ) {
       console.warn("Name already exist");
     }
   } catch (err) {

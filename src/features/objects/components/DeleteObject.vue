@@ -1,11 +1,10 @@
-
-
 <template>
   <v-dialog v-model="dialog" max-width="420">
     <v-card>
       <v-card-title>Confirm delete</v-card-title>
       <v-card-text>
-        Are you sure you want to delete <strong>{{ object?.name }}</strong>?
+        Are you sure you want to delete <strong>{{ object?.name }}</strong
+        >?
       </v-card-text>
       <v-card-actions>
         <v-spacer />
@@ -15,15 +14,18 @@
     </v-card>
   </v-dialog>
 </template>
+
 <script setup>
 import { computed } from "vue";
 import objectService from "../api/objectService.js";
+
 const props = defineProps({ show: Boolean, object: Object });
 const emit = defineEmits(["update:show", "deleted"]);
 const dialog = computed({
   get: () => props.show,
-  set: (val) => emit("update:show", val)
+  set: (val) => emit("update:show", val),
 });
+
 async function confirmDelete() {
   if (!props.object?.object_uuid) return;
   try {
@@ -37,9 +39,3 @@ async function confirmDelete() {
   }
 }
 </script>
-
-
-
-
-
-

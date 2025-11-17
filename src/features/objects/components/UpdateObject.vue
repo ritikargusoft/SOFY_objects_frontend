@@ -16,10 +16,13 @@
     </v-card>
   </v-dialog>
 </template>
+
 <script setup>
+
 import { ref, watch, computed } from "vue";
 import objectService from "../api/objectService.js";
 import RichTextEditor from "./RichTextEditor.vue";
+
 const props = defineProps({ show: Boolean, object: Object });
 const emit = defineEmits(["update:show", "updated"]);
 const dialog = computed({
@@ -28,6 +31,7 @@ const dialog = computed({
 });
 const local = ref({ object_uuid: null, name: "", description: "" });
 const required = (v) => (v && v.toString().trim().length > 0) || "Required";
+
 watch(() => props.show, (val) => {
   if (val && props.object) {
     local.value = {
@@ -37,6 +41,7 @@ watch(() => props.show, (val) => {
     };
   }
 });
+
 async function submit() {
   if (!required(local.value.name)) return;
   try {

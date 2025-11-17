@@ -50,7 +50,12 @@
         >
           <template #item.name="{ item }">
             <div class="font-weight-medium text-subtitle-2">
-              {{ item.name ?? "-" }}
+              <a
+                @click.prevent="goToObject(item)"
+                style="cursor: pointer; text-decoration: none; color: inherit"
+              >
+                {{ item.name ?? "-" }}
+              </a>
             </div>
           </template>
 
@@ -113,6 +118,12 @@ import UpdateObject from "../components/UpdateObject.vue";
 import DeleteObject from "../components/DeleteObject.vue";
 import objectService from "../api/objectService.js";
 import DOMPurify from "dompurify";
+
+import { useRouter } from "vue-router";
+const router = useRouter();
+function goToObject(item) {
+  router.push({ name: "ObjectDetail", params: { id: item.object_uuid } });
+}
 
 const objects = ref([]);
 const search = ref("");

@@ -85,12 +85,15 @@
     </div>
   </div>
 </template>
+
 <script setup>
+
 import { onBeforeUnmount, watch, computed } from "vue";
 import { Editor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import TextAlign from "@tiptap/extension-text-align";
+
 const props = defineProps({
   modelValue: { type: String, default: "" },
 });
@@ -109,26 +112,32 @@ const editor = new Editor({
     emit("update:modelValue", html);
   },
 });
+
 watch(
   () => props.modelValue,
   (val) => {
     if (val !== editor.getHTML()) editor.commands.setContent(val || "", false);
   }
 );
+
 onBeforeUnmount(() => editor.destroy());
 function cmd(name) {
   editor.chain().focus()[name]().run();
 }
+
 function align(dir) {
   editor.chain().focus().setTextAlign(dir).run();
 }
+
 function isActive(name) {
   return editor?.isActive(name) ? "blue-lighten-1" : undefined;
 }
+
 function isActiveAlign(dir) {
   return editor?.isActive({ textAlign: dir }) ? "blue-lighten-1" : undefined;
 }
 </script>
+
 <style scoped>
 .editor :deep(.ProseMirror) {
   min-height: 140px;
