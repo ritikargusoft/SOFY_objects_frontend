@@ -14,13 +14,14 @@
     </v-card>
   </v-dialog>
 </template>
-
 <script setup>
 import { computed } from "vue";
-import objectService from "../api/objectService.js";
+import { useStore } from "vuex";
 
 const props = defineProps({ show: Boolean, object: Object });
 const emit = defineEmits(["update:show", "deleted"]);
+const store = useStore();
+
 const dialog = computed({
   get: () => props.show,
   set: (val) => emit("update:show", val),
@@ -29,7 +30,7 @@ const dialog = computed({
 async function confirmDelete() {
   if (!props.object?.object_uuid) return;
   try {
-    const res = await objectService.deleteObject(props.object.object_uuid);
+    const res = await store.dispatch("objects/delete", props.object.object_uuid);
     if (res.status === 204 || res.status === 200) {
       emit("deleted");
       dialog.value = false;

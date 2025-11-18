@@ -111,26 +111,28 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { computed, ref, onMounted } from "vue";
+import { useStore } from "vuex";
 import MainLayout from "../../../layouts/MainLayout.vue";
 import CreateObject from "../components/CreateObject.vue";
 import UpdateObject from "../components/UpdateObject.vue";
 import DeleteObject from "../components/DeleteObject.vue";
-import objectService from "../api/objectService.js";
 import DOMPurify from "dompurify";
-
 import { useRouter } from "vue-router";
+
+const store = useStore();
 const router = useRouter();
+
 function goToObject(item) {
   router.push({ name: "ObjectDetail", params: { id: item.object_uuid } });
 }
 
-const objects = ref([]);
 const search = ref("");
 const selected = ref(null);
 const showCreate = ref(false);
 const showEdit = ref(false);
 const showDelete = ref(false);
+
 const headers = [
   { title: "Name", key: "name", align: "start", sortable: true },
   { title: "Description", key: "description", align: "start" },
@@ -143,13 +145,11 @@ const headers = [
   { title: "Actions", key: "actions", align: "center", sortable: false },
 ];
 
+const objects = computed(() => store.getters["objects/all"] ?? []);
+
 async function load() {
   try {
-    const data = await objectService.fetchObjects();
-    objects.value = (data || []).map((o) => ({
-      ...o,
-      last_updated_at: o.last_updated_at ?? null,
-    }));
+    await store.dispatch("objects/load");
   } catch (err) {
     console.error("Failed to load objects", err);
   }
@@ -162,11 +162,13 @@ function applyFilter() {}
 const filtered = computed(() => {
   const q = (search.value || "").trim().toLowerCase();
   if (!q) return objects.value;
-  return objects.value.filter(
-    (o) =>
-      (o.name || "").toLowerCase().includes(q) ||
-      (o.description || "").toLowerCase().includes(q)
-  );
+  return objects.value.filter((o) => {
+    const nameMatch = (o.name || "").toLowerCase().includes(q);
+    const descText = (o.description || "")
+      .replace(/<[^>]*>/g, "")
+      .toLowerCase();
+    return nameMatch || descText.includes(q);
+  });
 });
 
 function openCreate() {

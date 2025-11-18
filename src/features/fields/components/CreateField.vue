@@ -43,13 +43,15 @@
 
 <script setup>
 import { ref, computed, watch } from "vue";
-import fieldService from "../api/fieldService.js";
+import { useStore } from "vuex";
 
 const props = defineProps({
   show: { type: Boolean, default: false },
   objectUuid: { type: String, required: true },
 });
 const emit = defineEmits(["update:show", "created", "error"]);
+
+const store = useStore();
 
 const dialog = computed({
   get: () => props.show,
@@ -102,15 +104,21 @@ async function submit() {
     return;
   }
 
+  const payload = {
+    field_name: form.value.field_name.trim(),
+    field_label: form.value.field_label.trim(),
+    field_description: form.value.field_description?.trim() ?? null,
+    field_type: form.value.field_type,
+    field_order: form.value.field_order ?? undefined,
+  };
+
   try {
-    const payload = {
-      field_name: form.value.field_name.trim(),
-      field_label: form.value.field_label.trim(),
-      field_description: form.value.field_description?.trim() ?? null,
-      field_type: form.value.field_type,
-      field_order: form.value.field_order ?? undefined,
-    };
-    const res = await fieldService.createField(props.objectUuid, payload);
+    const res = await store.dispatch("fields/createField", {
+      objectUuid: props.objectUuid,
+      payload,
+    });
+
+    // store action returns the axios response (or throws)
     if (res.status === 201) {
       emit("created", res.data);
       dialog.value = false;
@@ -125,3 +133,5 @@ async function submit() {
   }
 }
 </script>
+
+<style scoped></style>

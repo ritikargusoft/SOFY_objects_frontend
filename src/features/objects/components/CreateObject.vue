@@ -22,15 +22,15 @@
     </v-card>
   </v-dialog>
 </template>
-
 <script setup>
-
 import { ref, watch, computed } from "vue";
-import objectService from "../api/objectService.js";
+import { useStore } from "vuex";
 import RichTextEditor from "./RichTextEditor.vue";
 
 const props = defineProps({ show: Boolean });
 const emit = defineEmits(["update:show", "created"]);
+
+const store = useStore();
 
 const dialog = computed({
   get: () => props.show,
@@ -51,18 +51,17 @@ watch(
 async function submit() {
   if (!required(form.value.name)) return;
   try {
-    const res = await objectService.createObject({
+    const res = await store.dispatch("objects/create", {
       name: form.value.name.trim(),
       description: form.value.description || null,
     });
     if (res.status === 201) {
       emit("created");
       dialog.value = false;
-    } else if (
-      res.status === 200 &&
-      res.data?.message?.toLowerCase().includes("already")
-    ) {
-      console.warn("Name already exist");
+    } else if (res.status === 200 && res.data?.message?.toLowerCase().includes("already")) {
+      // backend returns created:false with existing object in your earlier design
+      // you may want a toast here
+      console.warn("Name already exists");
     }
   } catch (err) {
     console.error(err);

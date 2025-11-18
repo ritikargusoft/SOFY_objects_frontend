@@ -16,18 +16,18 @@
     </v-card>
   </v-dialog>
 </template>
-
 <script setup>
-
 import { ref, watch, computed } from "vue";
-import objectService from "../api/objectService.js";
+import { useStore } from "vuex";
 import RichTextEditor from "./RichTextEditor.vue";
 
 const props = defineProps({ show: Boolean, object: Object });
 const emit = defineEmits(["update:show", "updated"]);
+const store = useStore();
+
 const dialog = computed({
   get: () => props.show,
-  set: (val) => emit("update:show", val)
+  set: (val) => emit("update:show", val),
 });
 const local = ref({ object_uuid: null, name: "", description: "" });
 const required = (v) => (v && v.toString().trim().length > 0) || "Required";
@@ -37,7 +37,7 @@ watch(() => props.show, (val) => {
     local.value = {
       object_uuid: props.object.object_uuid,
       name: props.object.name,
-      description: props.object.description || "" 
+      description: props.object.description || ""
     };
   }
 });
@@ -45,10 +45,10 @@ watch(() => props.show, (val) => {
 async function submit() {
   if (!required(local.value.name)) return;
   try {
-    const res = await objectService.updateObject(local.value.object_uuid, {
+    const res = await store.dispatch("objects/update", { uuid: local.value.object_uuid, payload: {
       name: local.value.name.trim(),
-      description: local.value.description || null 
-    });
+      description: local.value.description || null
+    }});
     if (res.status === 200) {
       emit("updated");
       dialog.value = false;
