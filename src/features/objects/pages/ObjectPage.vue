@@ -37,17 +37,16 @@
       </v-row>
 
       <v-card class="elevation-3 rounded-lg">
-        <SmartDataTable
+        <v-data-table
           :headers="headers"
           :items="filtered"
           item-key="object_uuid"
+          dense
+          hover
+          class="pa-0 elevation-1"
           height="60vh"
-          :initial-items-per-page="15"
-          :items-per-page-options="[10,15,30,50]"
+          fixed-header
           :no-data-text="'No objects yet. Click Add to create one.'"
-          v-model:items-per-page="itemsPerPage"
-          :items-per-page-options="[5, 10, 25, 50]"
-          v-model:page="page"
         >
           <template #item.name="{ item }">
             <div class="font-weight-medium text-subtitle-2">
@@ -93,7 +92,7 @@
               </v-btn>
             </div>
           </template>
-        </SmartDataTable>
+        </v-data-table>
       </v-card>
 
       <CreateObject v-model:show="showCreate" @created="reload" />
@@ -110,6 +109,7 @@
     </div>
   </MainLayout>
 </template>
+
 <script setup>
 import { computed, ref, onMounted } from "vue";
 import { useStore } from "vuex";
@@ -119,7 +119,6 @@ import UpdateObject from "../components/UpdateObject.vue";
 import DeleteObject from "../components/DeleteObject.vue";
 import DOMPurify from "dompurify";
 import { useRouter } from "vue-router";
-import SmartDataTable from "../../../components/SmartDataTable.vue";
 
 const store = useStore();
 const router = useRouter();
@@ -133,9 +132,6 @@ const selected = ref(null);
 const showCreate = ref(false);
 const showEdit = ref(false);
 const showDelete = ref(false);
-
-const page = ref(1); 
-const itemsPerPage = ref(10); 
 
 const headers = [
   { title: "Name", key: "name", align: "start", sortable: true },
@@ -165,20 +161,14 @@ function applyFilter() {}
 
 const filtered = computed(() => {
   const q = (search.value || "").trim().toLowerCase();
-  let filteredObjects = objects.value;
-  if (q) {
-    filteredObjects = filteredObjects.filter((o) => {
-      const nameMatch = (o.name || "").toLowerCase().includes(q);
-      const descText = (o.description || "")
-        .replace(/<[^>]*>/g, "")
-        .toLowerCase();
-      return nameMatch || descText.includes(q);
-    });
-  }
-
-  const start = (page.value - 1) * itemsPerPage.value;
-  const end = start + itemsPerPage.value;
-  return filteredObjects.slice(start, end);
+  if (!q) return objects.value;
+  return objects.value.filter((o) => {
+    const nameMatch = (o.name || "").toLowerCase().includes(q);
+    const descText = (o.description || "")
+      .replace(/<[^>]*>/g, "")
+      .toLowerCase();
+    return nameMatch || descText.includes(q);
+  });
 });
 
 function openCreate() {

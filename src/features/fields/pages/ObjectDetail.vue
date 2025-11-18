@@ -24,16 +24,12 @@
       </v-row>
 
       <v-card class="mb-4">
-        <SmartDataTable
+        <v-data-table
           :headers="headers"
           :items="fieldsList"
           item-key="field_uuid"
           dense
           class="elevation-1"
-          v-model:page="page"
-          v-model:items-per-page="itemsPerPage"
-          :items-per-page-options="itemsPerPageOptions"
-          :no-data-text="'No fields yet. Click Add field to create.'"
         >
           <template #item.field_order="{ item }">
             <div>{{ item.field_order }}</div>
@@ -56,9 +52,11 @@
           </template>
 
           <template #no-data>
-            <v-card-text class="text-center">No fields yet. Click Add field to create.</v-card-text>
+            <v-card-text class="text-center"
+              >No fields yet. Click Add field to create.</v-card-text
+            >
           </template>
-        </SmartDataTable>
+        </v-data-table>
       </v-card>
 
       <CreateField
@@ -79,12 +77,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { useRoute } from "vue-router";
 import { useStore } from "vuex";
 import MainLayout from "../../../layouts/MainLayout.vue";
 import CreateField from "../components/CreateField.vue";
-import SmartDataTable from "../../../components/SmartDataTable.vue";
 
 const store = useStore();
 const route = useRoute();
@@ -92,10 +89,6 @@ const objectId = route.params.id;
 
 const showCreate = ref(false);
 const snackbar = ref({ show: false, message: "", timeout: 3000 });
-
-const page = ref(1);
-const itemsPerPage = ref(10);
-const itemsPerPageOptions = [5, 10, 25, 50];
 
 const headers = [
   { title: "Order", key: "field_order", align: "start" },
@@ -106,7 +99,9 @@ const headers = [
 ];
 
 const object = computed(() => store.getters["objects/byId"](objectId));
-const fieldsList = computed(() => store.getters["fields/getByObject"](objectId) || []);
+const fieldsList = computed(() =>
+  store.getters["fields/getByObject"](objectId)
+);
 
 function showMsg(msg) {
   snackbar.value.message = msg;
@@ -146,16 +141,7 @@ async function onCreated(_payload) {
   showMsg("Field created");
   // fields module auto-refetches after create (store action does that)
   showCreate.value = false;
-  page.value = 1;
 }
-
-watch(
-  () => fieldsList.value.length,
-  (len) => {
-    const maxPages = Math.max(1, Math.ceil(len / itemsPerPage.value));
-    if (page.value > maxPages) page.value = maxPages;
-  }
-);
 
 function stripHtml(html = "") {
   if (!html) return "";
