@@ -45,6 +45,9 @@
           :initial-items-per-page="15"
           :items-per-page-options="[10,15,30,50]"
           :no-data-text="'No objects yet. Click Add to create one.'"
+          v-model:items-per-page="itemsPerPage"
+          :items-per-page-options="[5, 10, 25, 50]"
+          v-model:page="page"
         >
           <template #item.name="{ item }">
             <div class="font-weight-medium text-subtitle-2">
@@ -107,7 +110,6 @@
     </div>
   </MainLayout>
 </template>
-
 <script setup>
 import { computed, ref, onMounted } from "vue";
 import { useStore } from "vuex";
@@ -131,6 +133,9 @@ const selected = ref(null);
 const showCreate = ref(false);
 const showEdit = ref(false);
 const showDelete = ref(false);
+
+const page = ref(1); 
+const itemsPerPage = ref(10); 
 
 const headers = [
   { title: "Name", key: "name", align: "start", sortable: true },
@@ -160,14 +165,20 @@ function applyFilter() {}
 
 const filtered = computed(() => {
   const q = (search.value || "").trim().toLowerCase();
-  if (!q) return objects.value;
-  return objects.value.filter((o) => {
-    const nameMatch = (o.name || "").toLowerCase().includes(q);
-    const descText = (o.description || "")
-      .replace(/<[^>]*>/g, "")
-      .toLowerCase();
-    return nameMatch || descText.includes(q);
-  });
+  let filteredObjects = objects.value;
+  if (q) {
+    filteredObjects = filteredObjects.filter((o) => {
+      const nameMatch = (o.name || "").toLowerCase().includes(q);
+      const descText = (o.description || "")
+        .replace(/<[^>]*>/g, "")
+        .toLowerCase();
+      return nameMatch || descText.includes(q);
+    });
+  }
+
+  const start = (page.value - 1) * itemsPerPage.value;
+  const end = start + itemsPerPage.value;
+  return filteredObjects.slice(start, end);
 });
 
 function openCreate() {

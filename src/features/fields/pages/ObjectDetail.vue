@@ -28,9 +28,12 @@
           :headers="headers"
           :items="fieldsList"
           item-key="field_uuid"
-          height="50vh"
-          :initial-items-per-page="10"
-          :items-per-page-options="[5,10,25,50]"
+          dense
+          class="elevation-1"
+          v-model:page="page"
+          v-model:items-per-page="itemsPerPage"
+          :items-per-page-options="itemsPerPageOptions"
+          :no-data-text="'No fields yet. Click Add field to create.'"
         >
           <template #item.field_order="{ item }">
             <div>{{ item.field_order }}</div>
@@ -76,7 +79,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useStore } from "vuex";
 import MainLayout from "../../../layouts/MainLayout.vue";
@@ -90,6 +93,10 @@ const objectId = route.params.id;
 const showCreate = ref(false);
 const snackbar = ref({ show: false, message: "", timeout: 3000 });
 
+const page = ref(1);
+const itemsPerPage = ref(10);
+const itemsPerPageOptions = [5, 10, 25, 50];
+
 const headers = [
   { title: "Order", key: "field_order", align: "start" },
   { title: "ID", key: "field_uuid", align: "start" },
@@ -99,7 +106,7 @@ const headers = [
 ];
 
 const object = computed(() => store.getters["objects/byId"](objectId));
-const fieldsList = computed(() => store.getters["fields/getByObject"](objectId));
+const fieldsList = computed(() => store.getters["fields/getByObject"](objectId) || []);
 
 function showMsg(msg) {
   snackbar.value.message = msg;
@@ -139,7 +146,16 @@ async function onCreated(_payload) {
   showMsg("Field created");
   // fields module auto-refetches after create (store action does that)
   showCreate.value = false;
+  page.value = 1;
 }
+
+watch(
+  () => fieldsList.value.length,
+  (len) => {
+    const maxPages = Math.max(1, Math.ceil(len / itemsPerPage.value));
+    if (page.value > maxPages) page.value = maxPages;
+  }
+);
 
 function stripHtml(html = "") {
   if (!html) return "";
