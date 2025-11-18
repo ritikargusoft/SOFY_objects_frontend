@@ -24,12 +24,13 @@
       </v-row>
 
       <v-card class="mb-4">
-        <v-data-table
+        <SmartDataTable
           :headers="headers"
           :items="fieldsList"
           item-key="field_uuid"
-          dense
-          class="elevation-1"
+          height="50vh"
+          :initial-items-per-page="10"
+          :items-per-page-options="[5,10,25,50]"
         >
           <template #item.field_order="{ item }">
             <div>{{ item.field_order }}</div>
@@ -54,7 +55,7 @@
           <template #no-data>
             <v-card-text class="text-center">No fields yet. Click Add field to create.</v-card-text>
           </template>
-        </v-data-table>
+        </SmartDataTable>
       </v-card>
 
       <CreateField
@@ -80,6 +81,7 @@ import { useRoute } from "vue-router";
 import { useStore } from "vuex";
 import MainLayout from "../../../layouts/MainLayout.vue";
 import CreateField from "../components/CreateField.vue";
+import SmartDataTable from "../../../components/SmartDataTable.vue";
 
 const store = useStore();
 const route = useRoute();

@@ -37,15 +37,13 @@
       </v-row>
 
       <v-card class="elevation-3 rounded-lg">
-        <v-data-table
+        <SmartDataTable
           :headers="headers"
           :items="filtered"
           item-key="object_uuid"
-          dense
-          hover
-          class="pa-0 elevation-1"
           height="60vh"
-          fixed-header
+          :initial-items-per-page="15"
+          :items-per-page-options="[10,15,30,50]"
           :no-data-text="'No objects yet. Click Add to create one.'"
         >
           <template #item.name="{ item }">
@@ -92,7 +90,7 @@
               </v-btn>
             </div>
           </template>
-        </v-data-table>
+        </SmartDataTable>
       </v-card>
 
       <CreateObject v-model:show="showCreate" @created="reload" />
@@ -119,6 +117,7 @@ import UpdateObject from "../components/UpdateObject.vue";
 import DeleteObject from "../components/DeleteObject.vue";
 import DOMPurify from "dompurify";
 import { useRouter } from "vue-router";
+import SmartDataTable from "../../../components/SmartDataTable.vue";
 
 const store = useStore();
 const router = useRouter();
