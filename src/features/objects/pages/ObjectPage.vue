@@ -70,7 +70,7 @@
           </template>
 
           <template #item.actions="{ item }">
-            <div class="d-flex">
+            <div class="d-flex justify-center ">
               <v-btn
                 icon
                 small
