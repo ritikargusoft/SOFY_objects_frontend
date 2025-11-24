@@ -124,7 +124,7 @@ const store = useStore();
 const router = useRouter();
 
 function goToObject(item) {
-  router.push({ name: "ObjectDetail", params: { id: item.object_uuid } });
+  router.push({ name: "ObjectView", params: { id: item.object_uuid } });
 }
 
 const search = ref("");
