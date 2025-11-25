@@ -1,4 +1,4 @@
-import ObjectRecordView from "../features/objectFeature/pages/ObjectRecordView.vue";
+import ObjectRecordView from "../features/objectRecord/pages/ObjectRecordView.vue";
 import ObjectPage from "../features/objects/pages/ObjectPage.vue";
 // import ObjectDetail from "../features/fields/pages/ObjectDetail.vue";
 
@@ -11,5 +11,4 @@ export default [
   //   props: true,
   // },
   { path: "/objects/:id", name: "ObjectView", component: ObjectRecordView },
-
 ];

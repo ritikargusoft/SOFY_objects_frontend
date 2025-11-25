@@ -66,9 +66,9 @@
               </template>
 
               <template #no-data>
-                <v-card-text
-                  >No records yet. Click + to create one.</v-card-text
-                >
+                <v-card-text>
+                  No records yet. Click + to create one.
+                </v-card-text>
               </template>
             </v-data-table>
           </div>
@@ -100,7 +100,6 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from "vue";
-
 import { useRoute, useRouter } from "vue-router";
 import { useStore } from "vuex";
 
@@ -108,8 +107,8 @@ import MainLayout from "../../../layouts/MainLayout.vue";
 import CreateRecord from "../components/CreateRecord.vue";
 import DeleteRecord from "../components/DeleteRecord.vue";
 import ManageFields from "../../fields/pages/ObjectDetail.vue";
-import objectRecordService from "../api/objectRecordService.js";
 import { sanitizeIdentifier } from "../utils/sanitize.js";
+
 const store = useStore();
 const route = useRoute();
 const router = useRouter();
@@ -129,6 +128,10 @@ function goBack() {
 }
 
 const search = ref("");
+const showCreateRecordDialog = ref(false);
+const showDeleteRecordDialog = ref(false);
+const selectedRecord = ref(null);
+
 const object = computed(() => store.getters["objects/byId"](objectId));
 
 const fieldsMeta = computed(
@@ -137,38 +140,43 @@ const fieldsMeta = computed(
 
 const dynamicFields = computed(() =>
   (fieldsMeta.value || []).map((f) => {
-    const nameSan = sanitizeIdentifier(f.name || f.field_name || "");
+    const nameSan = sanitizeIdentifier(
+      f.name || f.field_name || f.field_uuid || ""
+    );
     return { ...f, nameSan };
   })
 );
-const records = ref([]);
-const showCreateRecordDialog = ref(false);
-const showDeleteRecordDialog = ref(false);
-const selectedRecord = ref(null);
+
+const records = computed(() => {
+  const getter = store.getters["objectRecords/getByObject"];
+  return typeof getter === "function" ? getter(objectId) : [];
+});
 
 const recordHeaders = computed(() => {
   const base = [
-    { text: "ID", value: "record_id" },
-    { text: "UUID", value: "record_uuid" },
+    { title: "ID", key: "record_id" },
+    { title: "UUID", key: "record_uuid" },
   ];
   const dyn = dynamicFields.value.map((f) => ({
-    text: f.label || f.name,
-    value: f.nameSan,
+    title: f.label || f.name,
+    key: f.nameSan,
   }));
   const audit = [
-    { text: "Created At", value: "created_at" },
-    { text: "Created By", value: "created_by" },
-    { text: "Updated At", value: "last_updated_at" },
-    { text: "Updated By", value: "last_updated_by" },
+    { title: "Created At", key: "created_at" },
+    { title: "Created By", key: "created_by" },
+    { title: "Updated At", key: "last_updated_at" },
+    { title: "Updated By", key: "last_updated_by" },
   ];
-  const actions = [{ text: "Actions", value: "actions", sortable: false }];
+  const actions = [{ title: "Actions", key: "actions", sortable: false }];
   return [...base, ...dyn, ...audit, ...actions];
 });
 
 const recordsFiltered = computed(() => {
+  const list = records.value ?? [];
   const q = (search.value || "").trim().toLowerCase();
-  if (!q) return records.value;
-  return records.value.filter((r) => {
+  if (!q) return list;
+
+  return list.filter((r) => {
     const byId =
       String(r.record_id ?? "")
         .toLowerCase()
@@ -177,6 +185,7 @@ const recordsFiltered = computed(() => {
         .toLowerCase()
         .includes(q);
     if (byId) return true;
+
     for (const f of dynamicFields.value) {
       const v = String(r[f.nameSan] ?? "").toLowerCase();
       if (v.includes(q)) return true;
@@ -185,18 +194,18 @@ const recordsFiltered = computed(() => {
   });
 });
 
+function applyFilter() {}
+
 async function loadObjectAndFields() {
   if (!object.value) {
     await store.dispatch("objects/load");
   }
-
   await store.dispatch("fields/fetchFields", objectId);
 }
 
 async function loadRecords() {
   try {
-    const data = await objectRecordService.fetchRecords(objectId);
-    records.value = Array.isArray(data) ? data : [];
+    await store.dispatch("objectRecords/fetchRecords", objectId);
   } catch (err) {
     console.error("Failed to load records", err);
   }
@@ -210,6 +219,7 @@ onMounted(async () => {
 function openCreateRecord() {
   showCreateRecordDialog.value = true;
 }
+
 function openDeleteRecord(item) {
   selectedRecord.value = item;
   showDeleteRecordDialog.value = true;

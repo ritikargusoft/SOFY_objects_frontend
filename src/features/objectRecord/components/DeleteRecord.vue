@@ -19,7 +19,6 @@
 <script setup>
 import { computed } from "vue";
 import { useStore } from "vuex";
-import objectRecordService from "../api/objectRecordService.js";
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -28,41 +27,31 @@ const props = defineProps({
 });
 const emit = defineEmits(["update:show", "deleted", "error"]);
 
+const store = useStore();
+
 const dialog = computed({
   get: () => props.show,
   set: (v) => emit("update:show", v),
 });
+
 async function confirmDelete() {
   if (!props.record) return;
   try {
     const id = props.record.record_uuid;
-    const res = await objectRecordService.deleteRecord(props.objectUuid, id);
+    const res = await store.dispatch("objectRecords/deleteRecord", {
+      objectUuid: props.objectUuid,
+      recordUuid: id,
+    });
 
-    const status = res?.status;
-    const data = res?.data ?? res;
-
-    if (
-      (typeof status === "number" && status >= 200 && status < 300) ||
-      data === null ||
-      data === undefined ||
-      (data && Object.keys(data).length >= 0)
-    ) {
-      emit("deleted", data ?? {});
+    if (res) {
+      emit("deleted", res);
       emit("update:show", false);
       return;
     }
-
-    const msg = res?.data?.message ?? res?.message ?? "Delete failed";
-    emit("error", msg);
+    emit("error", "Delete failed");
   } catch (err) {
     const msg = err?.response?.data?.message ?? err.message ?? String(err);
-    console.error(
-      "DeleteRecord: unexpected error response:",
-      err?.response ?? err
-    );
     emit("error", msg);
   }
 }
 </script>
-
-<style scoped></style>

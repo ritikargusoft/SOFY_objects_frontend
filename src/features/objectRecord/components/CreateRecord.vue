@@ -35,26 +35,24 @@
 
 <script setup>
 import { ref, watch, computed } from "vue";
+import { useStore } from "vuex";
 import { sanitizeIdentifier } from "../utils/sanitize.js";
-import objectRecordService from "../api/objectRecordService.js";
 
 const props = defineProps({
   show: { type: Boolean, default: false },
   objectUuid: { type: String, required: true },
   fields: { type: Array, default: () => [] },
 });
-
 const emit = defineEmits(["update:show", "created", "error"]);
+
+const store = useStore();
 const dialog = ref(props.show);
 
 watch(
   () => props.show,
   (v) => (dialog.value = v)
 );
-
 watch(dialog, (v) => emit("update:show", v));
-
-const formRef = ref(null);
 
 const fieldsToUse = computed(() =>
   (props.fields || []).map((f) => {
@@ -64,13 +62,12 @@ const fieldsToUse = computed(() =>
       nameSan,
       inputType: inputTypeFor(f.field_type),
       colSpan: 12,
-      selectedOptions: f.options ?? null,
     };
   })
 );
 
+// form values
 const formValues = ref({});
-
 watch(
   () => fieldsToUse.value,
   (list) => {
@@ -88,10 +85,6 @@ function inputTypeFor(fieldType) {
   switch (fieldType) {
     case "number":
       return "number";
-    case "short_text":
-      return "text";
-    case "email":
-      return "email";
     case "long_text":
       return "textarea";
     case "checkbox":
@@ -100,15 +93,9 @@ function inputTypeFor(fieldType) {
       return "text";
   }
 }
-
 function inputComponent(f) {
-  if (f.field_type === "number") return "v-text-field";
-  if (f.field_type === "short_text") return "v-text-field";
-  if (f.field_type === "email") return "v-text-field";
   if (f.field_type === "long_text") return "v-textarea";
   if (f.field_type === "checkbox") return "v-checkbox";
-  if (f.field_type === "dropdown" || f.field_type === "radio")
-    return "v-text-field";
   return "v-text-field";
 }
 function close() {
@@ -123,29 +110,19 @@ async function submit() {
       payload[key] = formValues.value[key];
     }
 
-    const res = await objectRecordService.createRecord(
-      props.objectUuid,
-      payload
-    );
-    const status = res?.status;
-    const data = res?.data ?? res;
+    const res = await store.dispatch("objectRecords/createRecord", {
+      objectUuid: props.objectUuid,
+      payload,
+    });
 
-    if (
-      (typeof status === "number" && status >= 200 && status < 300) ||
-      (data && Object.keys(data).length > 0)
-    ) {
-      emit("created", data);
+    if (res) {
+      emit("created", res);
       dialog.value = false;
       return;
     }
-    const msg = res?.data?.message ?? res?.message ?? "Failed to create record";
-    emit("error", msg);
+    emit("error", "Failed to create record");
   } catch (err) {
     const msg = err?.response?.data?.message ?? err.message ?? String(err);
-    console.error(
-      "CreateRecord: unexpected error response:",
-      err?.response ?? err
-    );
     emit("error", msg);
   }
 }
