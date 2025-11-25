@@ -17,27 +17,22 @@
             <div class="d-flex justify-space-between mb-4">
               <div class="text-h6 ms-10">{{ object?.name ?? "Object" }}</div>
 
-              <div class="d-flex w-25">
+              <div class="d-flex w-50 justify-end">
                 <v-text-field
                   v-model="search"
                   dense
                   clearable
                   hide-details
-                  class="ma-0 mr-4"
+                  class="ma-0 mr-4 w-50"
                   style="max-width: 380px"
                   @input="applyFilter"
                 />
-                <v-btn
-                  color="blue-lighten-1"
-                  class="d-flex align-center my-3"
-                  rounded
-                  elevation="2"
-                  aria-label="Add Record"
-                  @input="openCreateRecord"
-                >
-                  <span class="material-symbols-outlined mr-2">add</span>
-                  <span class="text-none">Add</span>
-                </v-btn>
+
+                <div>
+                  <v-btn icon @click="openCreateRecord" title="Add record">
+                    <span class="material-symbols-outlined">add</span>
+                  </v-btn>
+                </div>
               </div>
             </div>
 
@@ -50,8 +45,8 @@
               :no-data-text="'No records yet. Click + to create one.'"
               disable-sort
             >
-              <template #item.actions="{ item }"
-                ><div class="d-flex">
+              <template #item.actions="{ item }">
+                <div class="d-flex">
                   <v-btn
                     icon
                     small
@@ -94,7 +89,7 @@
       @error="onError"
     />
     <DeleteRecord
-      v-model:show="showCreateRecordDialog"
+      v-model:show="showDeleteRecordDialog"
       :objectUuid="objectId"
       :record="selectedRecord"
       @deleted="onRecordDeleted"
@@ -142,7 +137,7 @@ const fieldsMeta = computed(
 
 const dynamicFields = computed(() =>
   (fieldsMeta.value || []).map((f) => {
-    const nameSan = sanitizeIdentifier(f.name || f.field_uuid || "");
+    const nameSan = sanitizeIdentifier(f.name || f.field_name || "");
     return { ...f, nameSan };
   })
 );
