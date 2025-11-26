@@ -49,6 +49,20 @@ const actions = {
     }
   },
 
+  async updateRecord({ dispatch }, { objectUuid, recordUuid, payload }) {
+    try {
+      const res = await objectRecordService.updateRecord(
+        objectUuid,
+        recordUuid,
+        payload
+      );
+      await dispatch("fetchRecords", objectUuid);
+      return res;
+    } catch (err) {
+      throw err;
+    }
+  },
+
   async deleteRecord({ dispatch }, { objectUuid, recordUuid }) {
     try {
       const res = await objectRecordService.deleteRecord(

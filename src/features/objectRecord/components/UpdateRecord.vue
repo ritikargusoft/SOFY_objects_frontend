@@ -1,7 +1,7 @@
 <template>
   <v-dialog v-model="dialog" max-width="820">
     <v-card>
-      <v-card-title> Create Record </v-card-title>
+      <v-card-title>Update Record</v-card-title>
       <v-card-text>
         <v-form ref="formRef" lazy-validation>
           <v-row>
@@ -26,7 +26,7 @@
         <v-spacer />
         <v-btn text @click="close">Cancel</v-btn>
         <v-btn color="blue-lighten-1" elevation="2" @click="submit">
-          Create
+          Save
         </v-btn>
       </v-card-actions>
     </v-card>
@@ -34,19 +34,20 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from "vue";
+import { computed, ref, watch } from "vue";
 import { useStore } from "vuex";
 
 const props = defineProps({
   show: { type: Boolean, default: false },
   objectUuid: { type: String, required: true },
   fields: { type: Array, default: () => [] },
+  record: { type: Object, default: null },
 });
-const emit = defineEmits(["update:show", "created", "error"]);
 
+const emit = defineEmits(["update:show", "updated", "error"]);
 const store = useStore();
-const dialog = ref(props.show);
 
+const dialog = ref(props.show);
 watch(
   () => props.show,
   (v) => (dialog.value = v)
@@ -61,19 +62,19 @@ const fieldsToUse = computed(() =>
       key,
       inputType: inputTypeFor(f.field_type),
       colSpan: 12,
+      selectOptions: f.options ?? null,
     };
   })
 );
 
-// form values
 const formValues = ref({});
 watch(
-  () => fieldsToUse.value,
-  (list) => {
+  () => [fieldsToUse.value, props.record],
+  ([list, rec]) => {
     const vals = {};
     list.forEach((f) => {
-      vals[f.key] = "";
-      if (f.field_type === "checkbox") vals[f.key] = false;
+      vals[f.key] = rec?.[f.key] ?? "";
+      if (f.field_type === "checkbox") vals[f.key] = !!vals[f.key];
     });
     formValues.value = vals;
   },
@@ -86,17 +87,23 @@ function inputTypeFor(fieldType) {
       return "number";
     case "long_text":
       return "textarea";
+    case "email":
+      return "email";
+    case "date":
+      return "date";
     case "checkbox":
       return "checkbox";
     default:
       return "text";
   }
 }
+
 function inputComponent(f) {
   if (f.field_type === "long_text") return "v-textarea";
   if (f.field_type === "checkbox") return "v-checkbox";
   return "v-text-field";
 }
+
 function close() {
   dialog.value = false;
 }
@@ -109,20 +116,28 @@ async function submit() {
       payload[key] = formValues.value[key];
     }
 
-    const res = await store.dispatch("objectRecords/createRecord", {
+    if (!props.record?.record_uuid) {
+      emit("error", "Record identifier missing");
+      return;
+    }
+
+    const res = await store.dispatch("objectRecords/updateRecord", {
       objectUuid: props.objectUuid,
+      recordUuid: props.record.record_uuid,
       payload,
     });
 
     if (res) {
-      emit("created", res);
+      emit("updated", res);
       dialog.value = false;
       return;
     }
-    emit("error", "Failed to create record");
+    emit("error", "Failed to update record");
   } catch (err) {
     const msg = err?.response?.data?.message ?? err.message ?? String(err);
     emit("error", msg);
   }
 }
 </script>
+
+<style scoped></style>

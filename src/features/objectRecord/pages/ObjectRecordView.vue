@@ -46,12 +46,22 @@
               disable-sort
             >
               <template #item.actions="{ item }">
-                <div class="d-flex">
+                <div class="d-flex my-2 justify-center">
+                  <v-btn
+                    class="mr-2"
+                    icon
+                    small
+                    @click="openEditRecord(item)"
+                    title="Edit"
+                  >
+                    <span class="material-symbols-outlined">edit</span>
+                  </v-btn>
                   <v-btn
                     icon
                     small
                     @click="openDeleteRecord(item)"
                     title="Delete"
+                    color="red"
                   >
                     <span class="material-symbols-outlined">delete</span>
                   </v-btn>
@@ -60,9 +70,21 @@
 
               <template
                 v-for="field in dynamicFields"
-                v-slot:[`item.${field.nameSan}`]="{ item }"
+                v-slot:[`item.${field.key}`]="{ item }"
               >
-                <div :key="field.nameSan">{{ item[field.nameSan] ?? "-" }}</div>
+                <div :key="field.key">{{ item[field.key] ?? "-" }}</div>
+              </template>
+
+              <template #item.last_updated_at="{ item }">
+                <div class="text-caption">
+                  {{ formatDate(item.last_updated_at) }}
+                </div>
+              </template>
+
+              <template #item.created_at="{ item }">
+                <div class="text-caption">
+                  {{ formatDate(item.created_at) }}
+                </div>
               </template>
 
               <template #no-data>
@@ -88,11 +110,21 @@
       @created="onRecordCreated"
       @error="onError"
     />
+
     <DeleteRecord
       v-model:show="showDeleteRecordDialog"
       :objectUuid="objectId"
       :record="selectedRecord"
       @deleted="onRecordDeleted"
+      @error="onError"
+    />
+
+    <UpdateRecord
+      v-model:show="showEditRecordDialog"
+      :objectUuid="objectId"
+      :fields="fieldsMeta"
+      :record="selectedRecordForEdit"
+      @updated="onRecordUpdated"
       @error="onError"
     />
   </MainLayout>
@@ -106,8 +138,8 @@ import { useStore } from "vuex";
 import MainLayout from "../../../layouts/MainLayout.vue";
 import CreateRecord from "../components/CreateRecord.vue";
 import DeleteRecord from "../components/DeleteRecord.vue";
+import UpdateRecord from "../components/UpdateRecord.vue";
 import ManageFields from "../../fields/pages/ObjectDetail.vue";
-import { sanitizeIdentifier } from "../utils/sanitize.js";
 
 const store = useStore();
 const route = useRoute();
@@ -131,6 +163,19 @@ const search = ref("");
 const showCreateRecordDialog = ref(false);
 const showDeleteRecordDialog = ref(false);
 const selectedRecord = ref(null);
+const showEditRecordDialog = ref(false);
+const selectedRecordForEdit = ref(null);
+
+function openEditRecord(item) {
+  selectedRecordForEdit.value = item;
+  showEditRecordDialog.value = true;
+}
+
+async function onRecordUpdated() {
+  await loadRecords();
+  showEditRecordDialog.value = false;
+  selectedRecordForEdit.value = null;
+}
 
 const object = computed(() => store.getters["objects/byId"](objectId));
 
@@ -138,18 +183,42 @@ const fieldsMeta = computed(
   () => store.getters["fields/getByObject"](objectId) || []
 );
 
-const dynamicFields = computed(() =>
-  (fieldsMeta.value || []).map((f) => {
-    const nameSan = sanitizeIdentifier(
-      f.name || f.field_name || f.field_uuid || ""
-    );
-    return { ...f, nameSan };
-  })
-);
-
 const records = computed(() => {
   const getter = store.getters["objectRecords/getByObject"];
   return typeof getter === "function" ? getter(objectId) : [];
+});
+
+const dynamicFields = computed(() => {
+  const list = records.value ?? [];
+  if (!list.length) return [];
+
+  const sample = list[0];
+  const keys = Object.keys(sample);
+
+  const baseCols = new Set([
+    "record_uuid",
+    "record_id",
+    "created_at",
+    "created_by",
+    "last_updated_at",
+    "last_updated_by",
+  ]);
+
+  const dynamicKeys = keys.filter((k) => !baseCols.has(k));
+
+  const metaByName = {};
+  (fieldsMeta.value || []).forEach((f) => {
+    const metaKey = f.name || f.field_name;
+    if (metaKey) metaByName[metaKey] = f;
+  });
+
+  return dynamicKeys.map((k) => {
+    const meta = metaByName[k];
+    return {
+      key: k,
+      label: meta?.label || meta?.name || k,
+    };
+  });
 });
 
 const recordHeaders = computed(() => {
@@ -158,8 +227,8 @@ const recordHeaders = computed(() => {
     { title: "UUID", key: "record_uuid" },
   ];
   const dyn = dynamicFields.value.map((f) => ({
-    title: f.label || f.name,
-    key: f.nameSan,
+    title: f.name || f.key,
+    key: f.key,
   }));
   const audit = [
     { title: "Created At", key: "created_at" },
@@ -187,7 +256,7 @@ const recordsFiltered = computed(() => {
     if (byId) return true;
 
     for (const f of dynamicFields.value) {
-      const v = String(r[f.nameSan] ?? "").toLowerCase();
+      const v = String(r[f.key] ?? "").toLowerCase();
       if (v.includes(q)) return true;
     }
     return false;
@@ -238,5 +307,14 @@ async function onRecordDeleted() {
 
 function onError(msg) {
   console.warn(msg || "Something went wrong");
+}
+
+function formatDate(ts) {
+  if (!ts) return "-";
+  try {
+    return new Date(ts).toLocaleString();
+  } catch {
+    return String(ts);
+  }
 }
 </script>
