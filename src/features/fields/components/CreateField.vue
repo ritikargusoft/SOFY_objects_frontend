@@ -1,32 +1,39 @@
 <template>
   <v-dialog v-model="dialog" max-width="560">
     <v-card>
-      <v-card-title>Add Field</v-card-title>
+      <v-card-title class="font-weight-bold">Add Field</v-card-title>
 
       <v-card-text>
         <v-form ref="formRef" lazy-validation>
           <v-text-field
             v-model="form.field_name"
-            label="Field name (identifier)"
+            label="Name *"
             :rules="[required]"
-            hint="No spaces/special chars recommended; will be sanitized by backend"
+            variant="outlined"
+            hint='The characters .<>:"/|?*=!;`~% are not allowed.'
             persistent-hint
+            class="mb-4"
           />
-          <v-text-field
+
+          <v-textarea
             v-model="form.field_label"
-            label="Field label (display name)"
+            label="Label *"
             :rules="[required]"
+            variant="outlined"
+            rows="4"
           />
           <v-textarea
             v-model="form.field_description"
-            label="Description (optional)"
-            rows="2"
+            label="Description"
+            variant="outlined"
+            rows="3"
           />
           <v-select
             v-model="form.field_type"
             :items="types"
-            label="Type"
+            label="Field type"
             :rules="[required]"
+            variant="outlined"
             dense
           />
         </v-form>
@@ -34,8 +41,16 @@
 
       <v-card-actions>
         <v-spacer />
-        <v-btn text @click="dialog = false">Cancel</v-btn>
-        <v-btn color="blue-lighten-1" @click="submit">Create</v-btn>
+        <v-btn
+          variant="outlined"
+          color="grey-darken-1"
+          text
+          @click="dialog = false"
+          >Cancel</v-btn
+        >
+        <v-btn variant="tonal" class="bg-blue-darken-3" @click="submit"
+          >Create</v-btn
+        >
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -44,6 +59,7 @@
 <script setup>
 import { ref, computed, watch } from "vue";
 import { useStore } from "vuex";
+import { toast } from "vue3-toastify";
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -66,6 +82,7 @@ const form = ref({
   field_type: "",
   field_order: null,
 });
+
 const types = [
   "short_text",
   "long_text",
@@ -96,11 +113,13 @@ watch(
 
 async function submit() {
   if (
-    !required(form.value.field_name) ||
-    !required(form.value.field_label) ||
-    !required(form.value.field_type)
+    !form.value.field_name?.trim() ||
+    !form.value.field_label?.trim() ||
+    !form.value.field_type?.trim()
   ) {
-    emit("error", "Please fill required fields");
+    const msg = "Field name, label and type are required";
+    toast.error(msg);
+    emit("error", msg);
     return;
   }
 
@@ -118,20 +137,23 @@ async function submit() {
       payload,
     });
 
-    // store action returns the axios response (or throws)
     if (res.status === 201) {
+      toast.success("Field created successfully");
       emit("created", res.data);
       dialog.value = false;
     } else if (res.status === 200) {
-      emit("error", res.data?.message ?? "Field already exists");
+      const msg = res.data?.message ?? "Field already exists";
+      toast.error(msg);
+      emit("error", msg);
     } else {
-      emit("error", "Unexpected response from server");
+      const msg = "Unexpected response from server";
+      toast.error(msg);
+      emit("error", msg);
     }
   } catch (err) {
     const msg = err?.response?.data?.message ?? err.message ?? String(err);
+    toast.error(msg);
     emit("error", msg);
   }
 }
 </script>
-
-<style scoped></style>

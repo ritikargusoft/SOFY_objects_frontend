@@ -8,7 +8,10 @@ export async function createField(objectUuid, payload) {
   return res;
 }
 export async function updateField(objectUuid, fieldUuid, payload) {
-  const res = await api.patch(`/objects/${objectUuid}/fields/${fieldUuid}`, payload);
+  const res = await api.put(
+    `/objects/${objectUuid}/fields/${fieldUuid}`,
+    payload
+  );
   return res;
 }
 export async function deleteField(objectUuid, fieldUuid) {

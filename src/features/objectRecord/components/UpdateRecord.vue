@@ -1,20 +1,31 @@
 <template>
   <v-dialog v-model="dialog" max-width="820">
-    <v-card>
-      <v-card-title>Update Record</v-card-title>
+    <v-card class="px-1 py-5">
+      <v-card-title class="font-weight-bold">Update Record</v-card-title>
+
       <v-card-text>
-        <v-form ref="formRef" lazy-validation>
+        <v-form ref="formRef" v-model="valid" lazy-validation>
           <v-row>
             <template v-for="f in fieldsToUse" :key="f.key">
-              <v-col :cols="f.colSpan">
+              <v-col :cols="f.colSpan || 12">
                 <component
                   :is="inputComponent(f)"
                   v-model="formValues[f.key]"
                   :label="f.label || f.name"
-                  :rows="3"
-                  :type="f.inputType"
+                  :rows="f.inputType === 'textarea' ? f.rows || 3 : undefined"
+                  :type="
+                    f.inputType === 'number'
+                      ? 'number'
+                      : f.inputType === 'email'
+                      ? 'email'
+                      : 'text'
+                  "
                   :items="f.selectOptions || []"
+                  :rules="rulesFor(f)"
                   dense
+                  variant="outlined"
+                  clearable
+                  :multiple="f.inputType === 'multi_select'"
                 />
               </v-col>
             </template>
@@ -24,8 +35,24 @@
 
       <v-card-actions>
         <v-spacer />
-        <v-btn text @click="close">Cancel</v-btn>
-        <v-btn color="blue-lighten-1" elevation="2" @click="submit">
+        <v-btn
+          variant="outlined"
+          color="grey-darken-1"
+          text
+          @click="close"
+          :disabled="submitting"
+        >
+          Cancel
+        </v-btn>
+
+        <v-btn
+          :loading="submitting"
+          :disabled="submitting"
+          variant="tonal"
+          class="bg-blue-darken-3"
+          elevation="2"
+          @click="submit"
+        >
           Save
         </v-btn>
       </v-card-actions>
@@ -36,6 +63,7 @@
 <script setup>
 import { computed, ref, watch } from "vue";
 import { useStore } from "vuex";
+import { toast } from "vue3-toastify";
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -48,6 +76,10 @@ const emit = defineEmits(["update:show", "updated", "error"]);
 const store = useStore();
 
 const dialog = ref(props.show);
+const formRef = ref(null);
+const valid = ref(true);
+const submitting = ref(false);
+
 watch(
   () => props.show,
   (v) => (dialog.value = v)
@@ -61,8 +93,10 @@ const fieldsToUse = computed(() =>
       ...f,
       key,
       inputType: inputTypeFor(f.field_type),
-      colSpan: 12,
-      selectOptions: f.options ?? null,
+      colSpan: f.colSpan || 12,
+      rows: f.rows || 3,
+      selectOptions: f.selectOptions || f.options || [],
+      required: !!f.required,
     };
   })
 );
@@ -73,8 +107,12 @@ watch(
   ([list, rec]) => {
     const vals = {};
     list.forEach((f) => {
-      vals[f.key] = rec?.[f.key] ?? "";
-      if (f.field_type === "checkbox") vals[f.key] = !!vals[f.key];
+      const raw = rec?.[f.key];
+      if (f.field_type === "checkbox")
+        vals[f.key] = raw ?? !!f.default ?? false;
+      else if (f.inputType === "multi_select")
+        vals[f.key] = raw ?? f.default ?? [];
+      else vals[f.key] = raw ?? f.default ?? "";
     });
     formValues.value = vals;
   },
@@ -93,6 +131,14 @@ function inputTypeFor(fieldType) {
       return "date";
     case "checkbox":
       return "checkbox";
+    case "dropdown":
+      return "select";
+    case "radio":
+      return "select";
+    case "multi_select":
+      return "multi_select";
+    case "star_rating":
+      return "rating";
     default:
       return "text";
   }
@@ -101,7 +147,66 @@ function inputTypeFor(fieldType) {
 function inputComponent(f) {
   if (f.field_type === "long_text") return "v-textarea";
   if (f.field_type === "checkbox") return "v-checkbox";
+  if (f.field_type === "star_rating") return "v-rating";
+  if (
+    f.field_type === "dropdown" ||
+    f.field_type === "radio" ||
+    f.field_type === "multi_select"
+  )
+    return "v-select";
   return "v-text-field";
+}
+
+function rulesFor(f) {
+  const rules = [];
+
+  if (f.field_type === "email") {
+    rules.push((v) => {
+      if (v === "" || v === null || v === undefined) return true;
+      const r = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return r.test(v) || "Invalid email";
+    });
+  }
+
+  if (f.field_type === "number") {
+    rules.push((v) => {
+      if (v === "" || v === null || v === undefined) return true;
+      return !Number.isNaN(Number(v)) || "Must be a number";
+    });
+  }
+
+  return rules;
+}
+
+function atLeastOneFilled() {
+  const vals = formValues.value || {};
+  for (const key in vals) {
+    const v = vals[key];
+
+    if (v === null || v === undefined) continue;
+
+    if (typeof v === "boolean") {
+      if (v === true) return true;
+      continue;
+    }
+
+    if (Array.isArray(v)) {
+      if (v.length > 0) return true;
+      continue;
+    }
+
+    if (typeof v === "object") {
+      if (Object.keys(v).length > 0) return true;
+      continue;
+    }
+
+    if (typeof v === "number") return true;
+    if (typeof v === "string") {
+      if (v.trim().length > 0) return true;
+      if (!isNaN(Number(v)) && String(v).trim() !== "") return true;
+    }
+  }
+  return false;
 }
 
 function close() {
@@ -109,15 +214,39 @@ function close() {
 }
 
 async function submit() {
+  const form = formRef.value;
+  if (form && typeof form.validate === "function") {
+    const ok = await form.validate();
+    if (!ok) {
+      toast.error("Please fix validation errors");
+      return;
+    }
+  }
+
+  if (!atLeastOneFilled()) {
+    toast.error("Please fill at least one field before saving");
+    return;
+  }
+
   try {
+    submitting.value = true;
+
     const payload = {};
     for (const key in formValues.value) {
-      if (formValues.value[key] === undefined) continue;
-      payload[key] = formValues.value[key];
+      const val = formValues.value[key];
+
+      if (val === undefined) continue;
+      if (typeof val === "string" && val.trim() === "") continue;
+      if (Array.isArray(val) && val.length === 0) continue;
+
+      payload[key] = val;
     }
 
     if (!props.record?.record_uuid) {
-      emit("error", "Record identifier missing");
+      const msg = "Record identifier missing";
+      toast.error(msg);
+      emit("error", msg);
+      submitting.value = false;
       return;
     }
 
@@ -128,16 +257,22 @@ async function submit() {
     });
 
     if (res) {
+      toast.success("Record updated successfully");
       emit("updated", res);
       dialog.value = false;
+      submitting.value = false;
       return;
     }
-    emit("error", "Failed to update record");
+
+    const msg = "Failed to update record";
+    toast.error(msg);
+    emit("error", msg);
+    submitting.value = false;
   } catch (err) {
     const msg = err?.response?.data?.message ?? err.message ?? String(err);
+    toast.error(msg);
     emit("error", msg);
+    submitting.value = false;
   }
 }
 </script>
-
-<style scoped></style>
