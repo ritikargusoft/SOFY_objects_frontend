@@ -48,9 +48,14 @@
           @click="dialog = false"
           >Cancel</v-btn
         >
-        <v-btn variant="tonal" class="bg-blue-darken-3" @click="submit"
-          >Create</v-btn
+        <v-btn
+          variant="tonal"
+          class="bg-blue-darken-3"
+          @click="submit"
+          :disabled="!canSubmitField"
         >
+          Create
+        </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -109,6 +114,12 @@ watch(
       };
     }
   }
+);
+const canSubmitField = computed(
+  () =>
+    form.value.field_name?.trim() &&
+    form.value.field_label?.trim() &&
+    form.value.field_type?.trim()
 );
 
 async function submit() {

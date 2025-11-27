@@ -21,11 +21,12 @@
                       : 'text'
                   "
                   :items="f.selectOptions || []"
-                  :rules="rulesFor(f)"
                   dense
                   variant="outlined"
                   clearable
                   :multiple="f.inputType === 'multi_select'"
+                  :error="(fieldErrors[f.key] || []).length > 0"
+                  :error-messages="fieldErrors[f.key] || []"
                 />
               </v-col>
             </template>
@@ -47,7 +48,7 @@
 
         <v-btn
           :loading="submitting"
-          :disabled="submitting"
+          :disabled="!canSubmit || submitting"
           variant="tonal"
           class="bg-blue-darken-3"
           elevation="2"
@@ -112,6 +113,7 @@ watch(
         vals[f.key] = raw ?? !!f.default ?? false;
       else if (f.inputType === "multi_select")
         vals[f.key] = raw ?? f.default ?? [];
+      else if (f.inputType === "number") vals[f.key] = raw ?? f.default ?? 0;
       else vals[f.key] = raw ?? f.default ?? "";
     });
     formValues.value = vals;
@@ -178,29 +180,46 @@ function rulesFor(f) {
   return rules;
 }
 
+const fieldErrors = computed(() => {
+  const errors = {};
+  const list = fieldsToUse.value || [];
+  for (const f of list) {
+    const rules = rulesFor(f);
+    const val = formValues.value?.[f.key];
+    const msgs = [];
+    for (const r of rules) {
+      try {
+        const out = r(val);
+        if (out !== true) msgs.push(out);
+      } catch (e) {
+        msgs.push(String(e));
+      }
+    }
+    if (msgs.length > 0) errors[f.key] = msgs;
+  }
+  return errors;
+});
+
 function atLeastOneFilled() {
   const vals = formValues.value || {};
   for (const key in vals) {
     const v = vals[key];
-
     if (v === null || v === undefined) continue;
-
     if (typeof v === "boolean") {
       if (v === true) return true;
       continue;
     }
-
     if (Array.isArray(v)) {
       if (v.length > 0) return true;
       continue;
     }
-
     if (typeof v === "object") {
       if (Object.keys(v).length > 0) return true;
       continue;
     }
-
-    if (typeof v === "number") return true;
+    if (typeof v === "number") {
+      if (!Number.isNaN(v)) return true;
+    }
     if (typeof v === "string") {
       if (v.trim().length > 0) return true;
       if (!isNaN(Number(v)) && String(v).trim() !== "") return true;
@@ -208,6 +227,19 @@ function atLeastOneFilled() {
   }
   return false;
 }
+
+const hasNonNumberFields = computed(() =>
+  (fieldsToUse.value || []).some((f) => f.inputType !== "number")
+);
+const hasFieldValidationErrors = computed(
+  () => Object.keys(fieldErrors.value || {}).length > 0
+);
+
+const canSubmit = computed(() => {
+  if (hasFieldValidationErrors.value) return false;
+  if (hasNonNumberFields.value) return atLeastOneFilled();
+  return true;
+});
 
 function close() {
   dialog.value = false;
@@ -223,22 +255,19 @@ async function submit() {
     }
   }
 
-  if (!atLeastOneFilled()) {
+  if (!canSubmit.value) {
     toast.error("Please fill at least one field before saving");
     return;
   }
 
   try {
     submitting.value = true;
-
     const payload = {};
     for (const key in formValues.value) {
       const val = formValues.value[key];
-
       if (val === undefined) continue;
       if (typeof val === "string" && val.trim() === "") continue;
       if (Array.isArray(val) && val.length === 0) continue;
-
       payload[key] = val;
     }
 
