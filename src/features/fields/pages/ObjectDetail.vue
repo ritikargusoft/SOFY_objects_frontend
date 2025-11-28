@@ -70,6 +70,16 @@
           </v-card-text>
         </template>
       </v-data-table>
+
+      <!-- <v-pagination
+        data-test="s-pagination"
+        :length="100"
+        :total-visible="10"
+        color="primary"
+        variant="plain"
+        density="comfortable"
+        rounded="pill"
+      ></v-pagination> -->
     </v-card>
 
     <CreateField

@@ -27,6 +27,11 @@
                   :multiple="f.inputType === 'multi_select'"
                   :error="(fieldErrors[f.key] || []).length > 0"
                   :error-messages="fieldErrors[f.key] || []"
+                  :maxlength="
+                    f.inputType === 'text' && f.maxLength
+                      ? f.maxLength
+                      : undefined
+                  "
                 />
               </v-col>
             </template>
@@ -98,25 +103,33 @@ const fieldsToUse = computed(() =>
       rows: f.rows || 3,
       selectOptions: f.selectOptions || f.options || [],
       required: !!f.required,
+      maxLength: f.max_length || null,
+      defaultValue: f.default_value ?? null,
     };
   })
 );
 
 const formValues = ref({});
+const initialFormValues = ref({});
+
 watch(
   () => [fieldsToUse.value, props.record],
   ([list, rec]) => {
     const vals = {};
     list.forEach((f) => {
       const raw = rec?.[f.key];
-      if (f.field_type === "checkbox")
-        vals[f.key] = raw ?? !!f.default ?? false;
-      else if (f.inputType === "multi_select")
-        vals[f.key] = raw ?? f.default ?? [];
-      else if (f.inputType === "number") vals[f.key] = raw ?? f.default ?? 0;
-      else vals[f.key] = raw ?? f.default ?? "";
+      if (f.field_type === "checkbox") {
+        vals[f.key] = typeof raw !== "undefined" && raw !== null ? raw : false;
+      } else if (f.inputType === "multi_select") {
+        vals[f.key] = typeof raw !== "undefined" && raw !== null ? raw : [];
+      } else if (f.inputType === "number") {
+        vals[f.key] = typeof raw !== "undefined" && raw !== null ? raw : 0;
+      } else {
+        vals[f.key] = typeof raw !== "undefined" && raw !== null ? raw : "";
+      }
     });
     formValues.value = vals;
+    initialFormValues.value = JSON.parse(JSON.stringify(vals));
   },
   { immediate: true }
 );
@@ -174,6 +187,16 @@ function rulesFor(f) {
     rules.push((v) => {
       if (v === "" || v === null || v === undefined) return true;
       return !Number.isNaN(Number(v)) || "Must be a number";
+    });
+  }
+
+  if (f.field_type === "short_text" && f.maxLength) {
+    rules.push((v) => {
+      if (v === "" || v === null || v === undefined) return true;
+      return (
+        String(v).length <= f.maxLength ||
+        `Must be at most ${f.maxLength} characters`
+      );
     });
   }
 
@@ -265,10 +288,38 @@ async function submit() {
     const payload = {};
     for (const key in formValues.value) {
       const val = formValues.value[key];
+      const initial = initialFormValues.value?.[key];
       if (val === undefined) continue;
-      if (typeof val === "string" && val.trim() === "") continue;
-      if (Array.isArray(val) && val.length === 0) continue;
-      payload[key] = val;
+
+      if (Array.isArray(val)) {
+        const changed = JSON.stringify(val) !== JSON.stringify(initial);
+        if (changed) payload[key] = val;
+        else if (val.length > 0) payload[key] = val;
+        continue;
+      }
+
+      if (typeof val === "boolean" || typeof val === "number") {
+        payload[key] = val;
+        continue;
+      }
+
+      if (typeof val === "string") {
+        const changed = String(val) !== String(initial);
+        if (changed) {
+          // if user cleared field (""), include empty string in payload
+          payload[key] = val;
+          continue;
+        }
+        // unchanged and non-empty -> include
+        if (val.trim() !== "") {
+          payload[key] = val;
+          continue;
+        }
+        // unchanged and empty -> skip
+        continue;
+      }
+
+      if (val !== null && val !== undefined) payload[key] = val;
     }
 
     if (!props.record?.record_uuid) {

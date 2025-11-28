@@ -35,7 +35,28 @@
             :rules="[required]"
             variant="outlined"
             dense
+            class="mb-4"
           />
+
+          <div v-if="form.field_type === 'short_text'">
+            <v-text-field
+              v-model.number="form.max_length"
+              type="number"
+              label="Max length"
+              variant="outlined"
+              :error="!!maxLengthError"
+              :error-messages="maxLengthError ? [maxLengthError] : []"
+              hint="Max Length should not be greater than NVARCHAR(MAX) (i.e. 1000000000). Default is 200."
+              persistent-hint
+            />
+            <v-text-field
+              v-model="form.default_value"
+              label="Default value"
+              variant="outlined"
+              :error="!!defaultValueError"
+              :error-messages="defaultValueError ? [defaultValueError] : []"
+            />
+          </div>
         </v-form>
       </v-card-text>
 
@@ -66,6 +87,8 @@ import { ref, computed, watch } from "vue";
 import { useStore } from "vuex";
 import { toast } from "vue3-toastify";
 
+const VARCHAR_MAX_LIMIT = 10000000;
+
 const props = defineProps({
   show: { type: Boolean, default: false },
   objectUuid: { type: String, required: true },
@@ -86,6 +109,8 @@ const form = ref({
   field_description: "",
   field_type: "",
   field_order: null,
+  max_length: 200,
+  default_value: "",
 });
 
 const types = [
@@ -97,6 +122,7 @@ const types = [
   "radio",
   "email",
   "star_rating",
+  "decimal",
 ];
 
 const required = (v) => (v && v.toString().trim().length > 0) || "Required";
@@ -111,24 +137,50 @@ watch(
         field_description: "",
         field_type: "",
         field_order: null,
+        max_length: 200,
+        default_value: "",
       };
     }
   }
 );
-const canSubmitField = computed(
-  () =>
-    form.value.field_name?.trim() &&
-    form.value.field_label?.trim() &&
-    form.value.field_type?.trim()
-);
+
+const maxLengthError = computed(() => {
+  if (form.value.field_type !== "short_text") return "";
+  const v = form.value.max_length;
+  if (v === null || v === undefined || v === "") return "";
+  const num = Number(v);
+  if (Number.isNaN(num) || num <= 0)
+    return "Max Length must be a positive number";
+  if (num > VARCHAR_MAX_LIMIT)
+    return `Max Length must be a greater than ${VARCHAR_MAX_LIMIT}`;
+
+  return "";
+});
+
+const defaultValueError = computed(() => {
+  if (form.value.field_type !== "short_text") return "";
+  const dv = form.value.default_value ?? "";
+  const ml = form.value.max_length;
+  if (!ml) return "";
+  const num = Number(ml);
+  if (Number.isNaN(num) || num <= 0) return "";
+  if (String(dv).length > num)
+    return `Default value length must not exceed max length (${num})`;
+  return "";
+});
+
+const canSubmitField = computed(() => {
+  if (!form.value.field_name?.trim()) return false;
+  if (!form.value.field_label?.trim()) return false;
+  if (!form.value.field_type?.trim()) return false;
+  if (maxLengthError.value) return false;
+  if (defaultValueError.value) return false;
+  return true;
+});
 
 async function submit() {
-  if (
-    !form.value.field_name?.trim() ||
-    !form.value.field_label?.trim() ||
-    !form.value.field_type?.trim()
-  ) {
-    const msg = "Field name, label and type are required";
+  if (!canSubmitField.value) {
+    const msg = "Please fix validation errors and fill required fields";
     toast.error(msg);
     emit("error", msg);
     return;
@@ -141,6 +193,15 @@ async function submit() {
     field_type: form.value.field_type,
     field_order: form.value.field_order ?? undefined,
   };
+
+  if (form.value.field_type === "short_text") {
+    const ml = form.value.max_length;
+    payload.max_length = ml ? Number(ml) : 200;
+  }
+
+  if (form.value.default_value !== "") {
+    payload.default_value = form.value.default_value;
+  }
 
   try {
     const res = await store.dispatch("fields/createField", {

@@ -26,6 +26,11 @@
                   :multiple="f.inputType === 'multi_select'"
                   :error="(fieldErrors[f.key] || []).length > 0"
                   :error-messages="fieldErrors[f.key] || []"
+                  :maxLength="
+                    f.inputType === 'text' && f.maxLength
+                      ? f.maxLength
+                      : undefined
+                  "
                 />
               </v-col>
             </template>
@@ -95,22 +100,43 @@ const fieldsToUse = computed(() =>
       rows: f.rows || 3,
       selectOptions: f.selectOptions || f.options || [],
       required: !!f.required,
+      maxLength: f.max_Length || null,
+      defaultValue:
+        typeof f.default_value !== "undefined" ? f.default_value : null,
     };
   })
 );
 
 const formValues = ref({});
+const initialFormValues = ref({});
 watch(
   () => fieldsToUse.value,
   (list) => {
     const vals = {};
     list.forEach((f) => {
-      if (f.field_type === "checkbox") vals[f.key] = f.default ?? false;
-      else if (f.inputType === "multi_select") vals[f.key] = f.default || [];
-      else if (f.inputType === "number") vals[f.key] = f.default ?? 0;
-      else vals[f.key] = f.default ?? "";
+      if (f.field_type === "checkbox") {
+        vals[f.key] =
+          typeof f.defaultValue !== "undefined" && f.defaultValue !== null
+            ? f.defaultValue
+            : false;
+      } else if (f.inputType === "multi_select") {
+        vals[f.key] = f.defaultValue || [];
+      } else if (f.inputType === "number") {
+        vals[f.key] =
+          typeof f.defaultValue !== "undefined" && f.defaultValue !== null
+            ? f.defaultValue
+            : 0;
+      } else {
+        // For create: use default_value (if provided) only here (not for update).
+        vals[f.key] =
+          typeof f.defaultValue !== "undefined" && f.defaultValue !== null
+            ? f.defaultValue
+            : "";
+      }
     });
     formValues.value = vals;
+    // snapshot initial values to detect intentional edits / clears
+    initialFormValues.value = JSON.parse(JSON.stringify(vals));
   },
   { immediate: true }
 );
@@ -168,6 +194,15 @@ function rulesFor(f) {
     });
   }
 
+  if (f.field_type === "short_text" && f.maxLength) {
+    rules.push((v) => {
+      if (v === "" || v === null || v === undefined) return true;
+      return (
+        String(v).length <= f.maxLength ||
+        `Must be at most ${f.maxLength} characters`
+      );
+    });
+  }
   return rules;
 }
 
@@ -253,14 +288,41 @@ async function submit() {
 
     submitting.value = true;
     const payload = {};
+
     for (const key in formValues.value) {
       const val = formValues.value[key];
 
-      if (val === undefined) continue;
-      if (typeof val === "string" && val.trim() === "") continue;
-      if (Array.isArray(val) && val.length === 0) continue;
+      const initial = initialFormValues.value?.[key];
 
-      payload[key] = val;
+      if (val === undefined) continue;
+
+      if (Array.isArray(val)) {
+        if (val.length === 0) {
+          const changed = JSON.stringify(val) !== JSON.stringify(initial);
+          if (changed) payload[key] = val;
+        } else {
+          payload[key] = val;
+        }
+        continue;
+      }
+
+      if (typeof val === "boolean" || typeof val === "number") {
+        payload[key] = val;
+        continue;
+      }
+
+      if (typeof val === "string") {
+        const changed = String(val) !== String(initial);
+        if (changed) {
+          payload[key] = val;
+          continue;
+        }
+        if (val.trim() !== "") {
+          payload[key] = val;
+          continue;
+        }
+        continue;
+      }
     }
 
     const res = await store.dispatch("objectRecords/createRecord", {
