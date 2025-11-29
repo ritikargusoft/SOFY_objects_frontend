@@ -145,7 +145,7 @@ watch(
         field_order: props.field.field_order ?? null,
         max_length:
           props.field.max_length ??
-          (props.field.max_length === "short_text" ? 200 : null),
+          (props.field.field_type === "short_text" ? 200 : null),
         default_value: props.field.default_value ?? "",
       };
     } else if (v) {

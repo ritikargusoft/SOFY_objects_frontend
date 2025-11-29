@@ -26,7 +26,7 @@
                   :multiple="f.inputType === 'multi_select'"
                   :error="(fieldErrors[f.key] || []).length > 0"
                   :error-messages="fieldErrors[f.key] || []"
-                  :maxLength="
+                  :maxlength="
                     f.inputType === 'text' && f.maxLength
                       ? f.maxLength
                       : undefined
@@ -100,7 +100,7 @@ const fieldsToUse = computed(() =>
       rows: f.rows || 3,
       selectOptions: f.selectOptions || f.options || [],
       required: !!f.required,
-      maxLength: f.max_Length || null,
+      maxLength: f.max_length || null,
       defaultValue:
         typeof f.default_value !== "undefined" ? f.default_value : null,
     };
@@ -257,10 +257,9 @@ function atLeastOneFilled() {
 const hasNonNumberFields = computed(() =>
   (fieldsToUse.value || []).some((f) => f.inputType !== "number")
 );
-
-const hasFieldValidationErrors = computed(() => {
-  return Object.keys(fieldErrors.value || {}).length > 0;
-});
+const hasFieldValidationErrors = computed(
+  () => Object.keys(fieldErrors.value || {}).length > 0
+);
 
 const canSubmit = computed(() => {
   if (hasFieldValidationErrors.value) return false;
@@ -288,10 +287,8 @@ async function submit() {
 
     submitting.value = true;
     const payload = {};
-
     for (const key in formValues.value) {
       const val = formValues.value[key];
-
       const initial = initialFormValues.value?.[key];
 
       if (val === undefined) continue;
@@ -323,6 +320,7 @@ async function submit() {
         }
         continue;
       }
+      if (val !== null && val !== undefined) payload[key] = val;
     }
 
     const res = await store.dispatch("objectRecords/createRecord", {

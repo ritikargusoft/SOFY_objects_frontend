@@ -87,7 +87,7 @@ import { ref, computed, watch } from "vue";
 import { useStore } from "vuex";
 import { toast } from "vue3-toastify";
 
-const VARCHAR_MAX_LIMIT = 10000000;
+const VARCHAR_MAX_LIMIT = 1000000000;
 
 const props = defineProps({
   show: { type: Boolean, default: false },
