@@ -59,9 +59,8 @@
           text
           @click="close"
           :disabled="submitting"
+          >Cancel</v-btn
         >
-          Cancel
-        </v-btn>
 
         <v-btn
           :loading="submitting"
@@ -119,6 +118,13 @@ const fieldsToUse = computed(() =>
       maxLength: f.max_length || null,
       defaultValue: f.default_value ?? null,
       markdown: !!f.markdown,
+      min_value: typeof f.min_value !== "undefined" ? f.min_value : null,
+      max_value: typeof f.max_value !== "undefined" ? f.max_value : null,
+      allow_decimal: !!f.allow_decimal,
+      decimal_places:
+        typeof f.decimal_places !== "undefined" && f.decimal_places !== null
+          ? f.decimal_places
+          : 3,
     };
   })
 );
@@ -137,7 +143,13 @@ watch(
       } else if (f.inputType === "multi_select") {
         vals[f.key] = typeof raw !== "undefined" && raw !== null ? raw : [];
       } else if (f.inputType === "number") {
-        vals[f.key] = typeof raw !== "undefined" && raw !== null ? raw : 0;
+        if (typeof raw !== "undefined" && raw !== null && raw !== "") {
+          vals[f.key] = raw;
+        } else {
+          if (f.allow_decimal)
+            vals[f.key] = Number(0).toFixed(Number(f.decimal_places ?? 3));
+          else vals[f.key] = 0;
+        }
       } else {
         vals[f.key] = typeof raw !== "undefined" && raw !== null ? raw : "";
       }
@@ -205,6 +217,36 @@ function rulesFor(f) {
     rules.push((v) => {
       if (v === "" || v === null || v === undefined) return true;
       return !Number.isNaN(Number(v)) || "Must be a number";
+    });
+
+    rules.push((v) => {
+      if (v === "" || v === null || v === undefined) return true;
+      if (
+        f.min_value !== null &&
+        f.min_value !== "" &&
+        Number(v) < Number(f.min_value)
+      )
+        return `Must be >= ${f.min_value}`;
+      if (
+        f.max_value !== null &&
+        f.max_value !== "" &&
+        Number(v) > Number(f.max_value)
+      )
+        return `Must be <= ${f.max_value}`;
+      return true;
+    });
+
+    rules.push((v) => {
+      if (v === "" || v === null || v === undefined) return true;
+      if (!f.allow_decimal) {
+        if (String(v).includes(".")) return "Decimals not allowed";
+        return true;
+      }
+      const dp = Number(f.decimal_places ?? 3);
+      const parts = String(v).split(".");
+      const decimals = (parts[1] || "").length;
+      if (decimals > dp) return `Max ${dp} decimal places allowed`;
+      return true;
     });
   }
 
@@ -310,7 +352,6 @@ async function submit() {
     for (const key in formValues.value) {
       const val = formValues.value[key];
       const initial = initialFormValues.value?.[key];
-
       if (val === undefined) continue;
 
       if (Array.isArray(val)) {
@@ -328,16 +369,13 @@ async function submit() {
       if (typeof val === "string") {
         const changed = String(val) !== String(initial);
         if (changed) {
-          // if user cleared field (""), include empty string in payload
-          payload[key] = val;
+          payload[key] = convertIfNumberField(key, val);
           continue;
         }
-        // unchanged and non-empty -> include
         if (val.trim() !== "") {
-          payload[key] = val;
+          payload[key] = convertIfNumberField(key, val);
           continue;
         }
-        // unchanged and empty -> skip
         continue;
       }
 
@@ -376,5 +414,15 @@ async function submit() {
     emit("error", msg);
     submitting.value = false;
   }
+}
+
+function convertIfNumberField(key, value) {
+  const f = (fieldsToUse.value || []).find((x) => x.key === key);
+  if (!f) return value;
+  if (f.inputType !== "number") return value;
+  if (value === "" || value === null || typeof value === "undefined")
+    return value;
+  const num = Number(value);
+  return Number.isNaN(num) ? value : num;
 }
 </script>

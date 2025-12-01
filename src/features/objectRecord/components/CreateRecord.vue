@@ -58,9 +58,8 @@
           text
           @click="close"
           :disabled="submitting"
+          >Cancel</v-btn
         >
-          Cancel
-        </v-btn>
 
         <v-btn
           :loading="submitting"
@@ -117,6 +116,13 @@ const fieldsToUse = computed(() =>
       defaultValue:
         typeof f.default_value !== "undefined" ? f.default_value : null,
       markdown: !!f.markdown,
+      min_value: typeof f.min_value !== "undefined" ? f.min_value : null,
+      max_value: typeof f.max_value !== "undefined" ? f.max_value : null,
+      allow_decimal: !!f.allow_decimal,
+      decimal_places:
+        typeof f.decimal_places !== "undefined" && f.decimal_places !== null
+          ? f.decimal_places
+          : 3,
     };
   })
 );
@@ -136,12 +142,20 @@ watch(
       } else if (f.inputType === "multi_select") {
         vals[f.key] = f.defaultValue || [];
       } else if (f.inputType === "number") {
-        vals[f.key] =
-          typeof f.defaultValue !== "undefined" && f.defaultValue !== null
-            ? f.defaultValue
-            : 0;
+        if (
+          typeof f.defaultValue !== "undefined" &&
+          f.defaultValue !== null &&
+          f.defaultValue !== ""
+        ) {
+          vals[f.key] = f.defaultValue;
+        } else {
+          if (f.allow_decimal) {
+            vals[f.key] = Number(0).toFixed(Number(f.decimal_places ?? 3));
+          } else {
+            vals[f.key] = 0;
+          }
+        }
       } else {
-        // For create: use default_value (if provided)
         vals[f.key] =
           typeof f.defaultValue !== "undefined" && f.defaultValue !== null
             ? f.defaultValue
@@ -208,6 +222,36 @@ function rulesFor(f) {
     rules.push((v) => {
       if (v === "" || v === null || v === undefined) return true;
       return !Number.isNaN(Number(v)) || "Must be a number";
+    });
+
+    rules.push((v) => {
+      if (v === "" || v === null || v === undefined) return true;
+      if (
+        f.min_value !== null &&
+        f.min_value !== "" &&
+        Number(v) < Number(f.min_value)
+      )
+        return `Must be >= ${f.min_value}`;
+      if (
+        f.max_value !== null &&
+        f.max_value !== "" &&
+        Number(v) > Number(f.max_value)
+      )
+        return `Must be <= ${f.max_value}`;
+      return true;
+    });
+
+    rules.push((v) => {
+      if (v === "" || v === null || v === undefined) return true;
+      if (!f.allow_decimal) {
+        if (String(v).includes(".")) return "Decimals are not allowed";
+        return true;
+      }
+      const dp = Number(f.decimal_places ?? 3);
+      const parts = String(v).split(".");
+      const decimals = (parts[1] || "").length;
+      if (decimals > dp) return `Max ${dp} decimal places allowed`;
+      return true;
     });
   }
 
@@ -283,9 +327,7 @@ const hasFieldValidationErrors = computed(
 
 const canSubmit = computed(() => {
   if (hasFieldValidationErrors.value) return false;
-  if (hasNonNumberFields.value) {
-    return atLeastOneFilled();
-  }
+  if (hasNonNumberFields.value) return atLeastOneFilled();
   return true;
 });
 
@@ -313,7 +355,6 @@ async function submit() {
 
       if (val === undefined) continue;
 
-      // arrays
       if (Array.isArray(val)) {
         if (val.length === 0) {
           const changed = JSON.stringify(val) !== JSON.stringify(initial);
@@ -324,30 +365,24 @@ async function submit() {
         continue;
       }
 
-      // booleans and numbers => always include
       if (typeof val === "boolean" || typeof val === "number") {
         payload[key] = val;
         continue;
       }
 
-      // strings
       if (typeof val === "string") {
         const changed = String(val) !== String(initial);
         if (changed) {
-          // user touched this field; include even if empty string
-          payload[key] = val;
+          payload[key] = convertIfNumberField(key, val);
           continue;
         }
-        // unchanged and non-empty -> include (this is default_value case or user prefilled)
         if (val.trim() !== "") {
-          payload[key] = val;
+          payload[key] = convertIfNumberField(key, val);
           continue;
         }
-        // unchanged and empty -> skip
         continue;
       }
 
-      // fallback: include if not empty
       if (val !== null && val !== undefined) payload[key] = val;
     }
 
@@ -373,5 +408,15 @@ async function submit() {
     emit("error", msg);
     submitting.value = false;
   }
+}
+
+function convertIfNumberField(key, value) {
+  const f = (fieldsToUse.value || []).find((x) => x.key === key);
+  if (!f) return value;
+  if (f.inputType !== "number") return value;
+  if (value === "" || value === null || typeof value === "undefined")
+    return value;
+  const num = Number(value);
+  return Number.isNaN(num) ? value : num;
 }
 </script>
