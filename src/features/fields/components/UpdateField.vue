@@ -40,7 +40,8 @@
             v-if="
               form.field_type === 'short_text' ||
               form.field_type === 'long_text' ||
-              form.field_type === 'number'
+              form.field_type === 'number' ||
+              form.field_type === 'email'
             "
           >
             <div
@@ -182,6 +183,17 @@
                 :error-messages="defaultValueError ? [defaultValueError] : []"
               />
             </div>
+
+            <div v-else-if="form.field_type === 'email'">
+              <v-text-field
+                v-model="form.default_value"
+                label="Default email"
+                variant="outlined"
+                type="email"
+                :error="!!defaultValueError"
+                :error-messages="defaultValueError ? [defaultValueError] : []"
+              />
+            </div>
           </div>
         </v-form>
       </v-card-text>
@@ -213,6 +225,7 @@ import { toast } from "vue3-toastify";
 import RichTextEditor from "../../objects/components/RichTextEditor.vue";
 
 const VARCHAR_MAX_LIMIT = 1000000000;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -378,6 +391,16 @@ const defaultValueError = computed(() => {
     const textLength = typeof dv === "string" ? dv.length : 0;
     if (textLength > num)
       return `Default value length must not exceed max length (${num})`;
+    return "";
+  }
+
+  // email default validation
+  if (form.value.field_type === "email") {
+    const dv = form.value.default_value;
+    if (dv === null || dv === "" || typeof dv === "undefined") return "";
+    const ds = String(dv).trim();
+    if (ds === "") return "";
+    if (!EMAIL_REGEX.test(ds)) return "Default must be a valid email";
     return "";
   }
 

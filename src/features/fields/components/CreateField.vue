@@ -42,7 +42,8 @@
             v-if="
               form.field_type === 'short_text' ||
               form.field_type === 'long_text' ||
-              form.field_type === 'number'
+              form.field_type === 'number' ||
+              form.field_type === 'email'
             "
           >
             <div
@@ -176,12 +177,24 @@
                 />
               </div>
             </div>
+
             <div v-else-if="form.field_type === 'number'">
               <v-text-field
                 v-model="form.default_value"
                 label="Default value"
                 variant="outlined"
                 type="number"
+                :error="!!defaultValueError"
+                :error-messages="defaultValueError ? [defaultValueError] : []"
+              />
+            </div>
+
+            <div v-else-if="form.field_type === 'email'">
+              <v-text-field
+                v-model="form.default_value"
+                label="Default email"
+                variant="outlined"
+                type="email"
                 :error="!!defaultValueError"
                 :error-messages="defaultValueError ? [defaultValueError] : []"
               />
@@ -219,6 +232,7 @@ import { toast } from "vue3-toastify";
 import RichTextEditor from "../../objects/components/RichTextEditor.vue";
 
 const VARCHAR_MAX_LIMIT = 1000000000;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -357,6 +371,16 @@ const defaultValueError = computed(() => {
     return "";
   }
 
+  // email default validation
+  if (form.value.field_type === "email") {
+    const dv = form.value.default_value;
+    if (dv === null || dv === "" || typeof dv === "undefined") return "";
+    const ds = String(dv).trim();
+    if (ds === "") return "";
+    if (!EMAIL_REGEX.test(ds)) return "Default must be a valid email";
+    return "";
+  }
+
   //number default
   if (form.value.field_type === "number") {
     const dv = form.value.default_value;
@@ -434,12 +458,20 @@ async function submit() {
   }
 
   // include default_value only if provided (empty string means user intentionally wants empty default)
-  if (
-    typeof form.value.default_value !== "undefined" &&
-    form.value.default_value !== null &&
-    form.value.default_value !== ""
-  ) {
-    payload.default_value = form.value.default_value;
+  if (form.value.field_type === "email") {
+    payload.default_value =
+      typeof form.value.default_value !== "undefined" &&
+      form.value.default_value !== null
+        ? String(form.value.default_value).trim()
+        : "";
+  } else {
+    if (
+      typeof form.value.default_value !== "undefined" &&
+      form.value.default_value !== null &&
+      form.value.default_value !== ""
+    ) {
+      payload.default_value = form.value.default_value;
+    }
   }
 
   if (form.value.field_type === "long_text") {
@@ -492,5 +524,3 @@ async function submit() {
   }
 }
 </script>
-
-<style scoped></style>
