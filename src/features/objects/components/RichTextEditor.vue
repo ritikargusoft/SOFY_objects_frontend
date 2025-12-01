@@ -1,6 +1,5 @@
 <template>
   <div class="">
-    <h4>Description</h4>
     <div class="d-flex flex-wrap mb-2 ga-2">
       <v-btn
         size="small"
@@ -87,7 +86,6 @@
 </template>
 
 <script setup>
-
 import { onBeforeUnmount, watch, computed } from "vue";
 import { Editor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";

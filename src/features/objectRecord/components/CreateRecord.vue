@@ -8,6 +8,7 @@
             <template v-for="f in fieldsToUse" :key="f.key">
               <v-col :cols="f.colSpan || 12">
                 <component
+                  v-if="!isRichLongText(f)"
                   :is="inputComponent(f)"
                   v-model="formValues[f.key]"
                   :label="f.label || f.name"
@@ -27,11 +28,22 @@
                   :error="(fieldErrors[f.key] || []).length > 0"
                   :error-messages="fieldErrors[f.key] || []"
                   :maxlength="
-                    f.inputType === 'text' && f.maxLength
+                    (f.inputType === 'text' || f.inputType === 'textarea') &&
+                    f.maxLength
                       ? f.maxLength
                       : undefined
                   "
                 />
+                <div v-else>
+                  <div class="mb-2">{{ f.label || f.name }}</div>
+                  <RichTextEditor v-model="formValues[f.key]" />
+                  <div
+                    v-if="fieldErrors[f.key]?.length"
+                    class="text-caption red--text"
+                  >
+                    {{ fieldErrors[f.key].join(", ") }}
+                  </div>
+                </div>
               </v-col>
             </template>
           </v-row>
@@ -69,6 +81,7 @@
 import { ref, watch, computed } from "vue";
 import { useStore } from "vuex";
 import { toast } from "vue3-toastify";
+import RichTextEditor from "../../objects/components/RichTextEditor.vue";
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -103,6 +116,7 @@ const fieldsToUse = computed(() =>
       maxLength: f.max_length || null,
       defaultValue:
         typeof f.default_value !== "undefined" ? f.default_value : null,
+      markdown: !!f.markdown,
     };
   })
 );
@@ -127,7 +141,7 @@ watch(
             ? f.defaultValue
             : 0;
       } else {
-        // For create: use default_value (if provided) only here (not for update).
+        // For create: use default_value (if provided)
         vals[f.key] =
           typeof f.defaultValue !== "undefined" && f.defaultValue !== null
             ? f.defaultValue
@@ -135,7 +149,6 @@ watch(
       }
     });
     formValues.value = vals;
-    // snapshot initial values to detect intentional edits / clears
     initialFormValues.value = JSON.parse(JSON.stringify(vals));
   },
   { immediate: true }
@@ -176,6 +189,10 @@ function inputComponent(f) {
   return "v-text-field";
 }
 
+function isRichLongText(f) {
+  return f.field_type === "long_text" && f.markdown === true;
+}
+
 function rulesFor(f) {
   const rules = [];
 
@@ -194,7 +211,10 @@ function rulesFor(f) {
     });
   }
 
-  if (f.field_type === "short_text" && f.maxLength) {
+  if (
+    (f.field_type === "short_text" || f.field_type === "long_text") &&
+    f.maxLength
+  ) {
     rules.push((v) => {
       if (v === "" || v === null || v === undefined) return true;
       return (
@@ -293,6 +313,7 @@ async function submit() {
 
       if (val === undefined) continue;
 
+      // arrays
       if (Array.isArray(val)) {
         if (val.length === 0) {
           const changed = JSON.stringify(val) !== JSON.stringify(initial);
@@ -303,23 +324,30 @@ async function submit() {
         continue;
       }
 
+      // booleans and numbers => always include
       if (typeof val === "boolean" || typeof val === "number") {
         payload[key] = val;
         continue;
       }
 
+      // strings
       if (typeof val === "string") {
         const changed = String(val) !== String(initial);
         if (changed) {
+          // user touched this field; include even if empty string
           payload[key] = val;
           continue;
         }
+        // unchanged and non-empty -> include (this is default_value case or user prefilled)
         if (val.trim() !== "") {
           payload[key] = val;
           continue;
         }
+        // unchanged and empty -> skip
         continue;
       }
+
+      // fallback: include if not empty
       if (val !== null && val !== undefined) payload[key] = val;
     }
 

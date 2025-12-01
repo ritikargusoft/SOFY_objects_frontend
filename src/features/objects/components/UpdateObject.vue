@@ -11,6 +11,8 @@
             required
             variant="outlined"
           />
+          <h4>Description</h4>
+
           <RichTextEditor v-model="local.description" />
         </v-form>
       </v-card-text>

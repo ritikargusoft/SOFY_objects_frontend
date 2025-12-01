@@ -35,15 +35,13 @@
             dense
             class="mb-4"
           />
-          <!-- <v-text-field
-            v-model="form.field_order"
-            label="Order (optional)"
-            type="number"
-            variant="outlined"
-            hide-details
-          /> -->
 
-          <div v-if="form.field_type === 'short_text'">
+          <div
+            v-if="
+              form.field_type === 'short_text' ||
+              form.field_type === 'long_text'
+            "
+          >
             <v-text-field
               v-model.number="form.max_length"
               type="number"
@@ -51,16 +49,83 @@
               variant="outlined"
               :error="!!maxLengthError"
               :error-messages="maxLengthError ? [maxLengthError] : []"
-              hint="Max Length should not be greater than NVARCHAR(MAX) (i.e. 1000000000). Default is 200."
+              hint="Max Length should not be greater than 1000000000"
               persistent-hint
             />
-            <v-text-field
-              v-model="form.default_value"
-              label="Default value"
-              variant="outlined"
-              :error="!!defaultValueError"
-              :error-messages="defaultValueError ? [defaultValueError] : []"
-            />
+            <div v-if="form.field_type === 'long_text'" class="my-3">
+              <label class="text-body-2 mb-2 d-block">
+                Enable Markdown Editor
+              </label>
+
+              <v-radio-group
+                v-model="form.markdown"
+                row
+                hide-details
+                density="comfortable"
+                class="d-flex align-center"
+              >
+                <!-- YES -->
+                <v-radio :value="true">
+                  <template #label>
+                    <span class="material-symbols-outlined icon-radio mr-1">
+                      {{
+                        form.markdown === true
+                          ? "radio_button_checked"
+                          : "radio_button_unchecked"
+                      }}
+                    </span>
+                    Yes
+                  </template>
+                </v-radio>
+
+                <!-- NO -->
+                <v-radio :value="false">
+                  <template #label>
+                    <span class="material-symbols-outlined icon-radio mr-1">
+                      {{
+                        form.markdown === false
+                          ? "radio_button_checked"
+                          : "radio_button_unchecked"
+                      }}
+                    </span>
+                    No
+                  </template>
+                </v-radio>
+              </v-radio-group>
+            </div>
+
+            <div v-if="form.field_type === 'short_text'">
+              <v-text-field
+                v-model="form.default_value"
+                label="Default value"
+                variant="outlined"
+                :error="!!defaultValueError"
+                :error-messages="defaultValueError ? [defaultValueError] : []"
+              />
+            </div>
+
+            <div v-else-if="form.field_type === 'long_text'">
+              <div v-if="form.markdown">
+                <div class="mb-2">Default value</div>
+                <RichTextEditor v-model="form.default_value" />
+                <div
+                  v-if="defaultValueError"
+                  class="text-caption red--text mt-2"
+                >
+                  {{ defaultValueError }}
+                </div>
+              </div>
+              <div v-else>
+                <v-textarea
+                  v-model="form.default_value"
+                  label="Default value (plain text)"
+                  variant="outlined"
+                  :error="!!defaultValueError"
+                  :error-messages="defaultValueError ? [defaultValueError] : []"
+                  rows="3"
+                />
+              </div>
+            </div>
           </div>
         </v-form>
       </v-card-text>
@@ -90,6 +155,7 @@
 import { ref, computed, watch } from "vue";
 import { useStore } from "vuex";
 import { toast } from "vue3-toastify";
+import RichTextEditor from "../../objects/components/RichTextEditor.vue";
 
 const VARCHAR_MAX_LIMIT = 1000000000;
 
@@ -116,6 +182,7 @@ const form = ref({
   field_order: null,
   max_length: 200,
   default_value: "",
+  markdown: false,
 });
 
 const types = [
@@ -147,6 +214,7 @@ watch(
           props.field.max_length ??
           (props.field.field_type === "short_text" ? 200 : null),
         default_value: props.field.default_value ?? "",
+        markdown: !!props.field.markdown,
       };
     } else if (v) {
       form.value = {
@@ -157,6 +225,7 @@ watch(
         field_order: null,
         max_length: 200,
         default_value: "",
+        markdown: false,
       };
     }
   },
@@ -164,25 +233,34 @@ watch(
 );
 
 const maxLengthError = computed(() => {
-  if (form.value.field_type !== "short_text") return "";
+  if (
+    form.value.field_type !== "short_text" &&
+    form.value.field_type !== "long_text"
+  )
+    return "";
   const v = form.value.max_length;
   if (v === null || v === undefined || v === "") return "";
   const num = Number(v);
   if (Number.isNaN(num) || num <= 0)
     return "Max Length must be a positive number";
   if (num > VARCHAR_MAX_LIMIT)
-    return `MAX Length should not be greater than ${VARCHAR_MAX_LIMIT}`;
+    return `Max Length should not be greater than ${VARCHAR_MAX_LIMIT}`;
   return "";
 });
 
 const defaultValueError = computed(() => {
-  if (form.value.field_type !== "short_text") return "";
+  if (
+    form.value.field_type !== "short_text" &&
+    form.value.field_type !== "long_text"
+  )
+    return "";
   const dv = form.value.default_value ?? "";
   const ml = form.value.max_length;
   if (!ml) return "";
   const num = Number(ml);
   if (Number.isNaN(num) || num <= 0) return "";
-  if (String(dv).length > num)
+  const textLength = typeof dv === "string" ? dv.length : 0;
+  if (textLength > num)
     return `Default value length must not exceed max length (${num})`;
   return "";
 });
@@ -219,13 +297,24 @@ async function submit() {
     field_order: form.value.field_order ?? undefined,
   };
 
-  if (form.value.field_type === "short_text") {
+  if (
+    form.value.field_type === "short_text" ||
+    form.value.field_type === "long_text"
+  ) {
     const ml = form.value.max_length;
-    payload.max_length = ml ? Number(ml) : 200;
+    payload.max_length = ml
+      ? Number(ml)
+      : form.value.field_type === "short_text"
+      ? 255
+      : null;
   }
 
-  // always include default_value field (empty string acceptable)
+  // default_value may be empty string; include it explicitly
   payload.default_value = form.value.default_value ?? "";
+
+  if (form.value.field_type === "long_text") {
+    payload.markdown = !!form.value.markdown;
+  }
 
   try {
     const res = await store.dispatch("fields/updateField", {
@@ -264,4 +353,15 @@ async function submit() {
 }
 </script>
 
-<style scoped></style>
+<style scoped>
+/* Keep these (they're safe) */
+:deep(.v-field__append-inner .v-icon),
+:deep(.v-field__clearable .v-icon) {
+  display: none !important;
+}
+.icon-radio {
+  font-size: 18px;
+  line-height: 1;
+  vertical-align: middle;
+}
+</style>

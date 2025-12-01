@@ -12,6 +12,8 @@
             :rules="[required]"
             required
           />
+          <h4>Description</h4>
+
           <RichTextEditor v-model="form.description" />
         </v-form>
       </v-card-text>

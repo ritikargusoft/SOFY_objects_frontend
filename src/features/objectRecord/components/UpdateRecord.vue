@@ -9,6 +9,7 @@
             <template v-for="f in fieldsToUse" :key="f.key">
               <v-col :cols="f.colSpan || 12">
                 <component
+                  v-if="!isRichLongText(f)"
                   :is="inputComponent(f)"
                   v-model="formValues[f.key]"
                   :label="f.label || f.name"
@@ -28,11 +29,22 @@
                   :error="(fieldErrors[f.key] || []).length > 0"
                   :error-messages="fieldErrors[f.key] || []"
                   :maxlength="
-                    f.inputType === 'text' && f.maxLength
+                    (f.inputType === 'text' || f.inputType === 'textarea') &&
+                    f.maxLength
                       ? f.maxLength
                       : undefined
                   "
                 />
+                <div v-else>
+                  <div class="mb-2">{{ f.label || f.name }}</div>
+                  <RichTextEditor v-model="formValues[f.key]" />
+                  <div
+                    v-if="fieldErrors[f.key]?.length"
+                    class="text-caption red--text"
+                  >
+                    {{ fieldErrors[f.key].join(", ") }}
+                  </div>
+                </div>
               </v-col>
             </template>
           </v-row>
@@ -70,6 +82,7 @@
 import { computed, ref, watch } from "vue";
 import { useStore } from "vuex";
 import { toast } from "vue3-toastify";
+import RichTextEditor from "../../objects/components/RichTextEditor.vue";
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -105,6 +118,7 @@ const fieldsToUse = computed(() =>
       required: !!f.required,
       maxLength: f.max_length || null,
       defaultValue: f.default_value ?? null,
+      markdown: !!f.markdown,
     };
   })
 );
@@ -172,6 +186,10 @@ function inputComponent(f) {
   return "v-text-field";
 }
 
+function isRichLongText(f) {
+  return f.field_type === "long_text" && f.markdown === true;
+}
+
 function rulesFor(f) {
   const rules = [];
 
@@ -190,7 +208,10 @@ function rulesFor(f) {
     });
   }
 
-  if (f.field_type === "short_text" && f.maxLength) {
+  if (
+    (f.field_type === "short_text" || f.field_type === "long_text") &&
+    f.maxLength
+  ) {
     rules.push((v) => {
       if (v === "" || v === null || v === undefined) return true;
       return (
@@ -289,6 +310,7 @@ async function submit() {
     for (const key in formValues.value) {
       const val = formValues.value[key];
       const initial = initialFormValues.value?.[key];
+
       if (val === undefined) continue;
 
       if (Array.isArray(val)) {
